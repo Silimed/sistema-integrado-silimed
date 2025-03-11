@@ -1,0 +1,96 @@
+services:
+  mysql:
+    image: mysql:8.0
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: nestjs
+      MYSQL_USER: root
+      MYSQL_PASSWORD: root
+    volumes:
+      - mysql-data:/var/lib/mysql
+    networks:
+      - my-network
+    healthcheck:
+      test:
+        ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-proot"]
+      interval: 5s
+      timeout: 10s
+      retries: 10
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:24.0
+    environment:
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: admin
+      KC_DB: mysql
+      KC_DB_URL: jdbc:mysql://mysql:3306/nestjs
+      KC_DB_USERNAME: root
+      KC_DB_PASSWORD: root
+    ports:
+      - "8080:8080"
+    command: ["start-dev"]
+    networks:
+      - my-network
+    depends_on:
+      mysql:
+        condition: service_healthy
+
+  backend:
+    build: ../backend
+    ports:
+      - "3000:3000"
+    environment:
+      DATABASE_URL: mysql://root:root@mysql:3306/nestjs
+      KEYCLOAK_URL: http://keycloak:8080
+      KEYCLOAK_REALM: Silimed
+      KEYCLOAK_CLIENT_ID: NestJS
+      KEYCLOAK_CLIENT_SECRET: jmpdqukAg1JmFo0iV3pCOpqmvna3Fm3g
+    networks:
+      - my-network
+    depends_on:
+      - mysql
+      - keycloak
+
+  frontend:
+    build: ../frontend
+    ports:
+      - "3001:3000"
+    environment:
+      NEXT_PUBLIC_API_URL: http://backend:3000
+      NEXT_PUBLIC_KEYCLOAK_URL: http://keycloak:8080
+    networks:
+      - my-network
+
+  ldap:
+    image: osixia/openldap:latest
+    container_name: ldap
+    environment:
+      LDAP_ORGANISATION: "Silimed"
+      LDAP_DOMAIN: "silimed.local"
+      LDAP_ADMIN_PASSWORD: "admin"
+    ports:
+      - "389:389"
+      - "636:636"
+    networks:
+      - my-network
+
+  phpldapadmin:
+    image: osixia/phpldapadmin
+    container_name: phpldapadmin
+    environment:
+      PHPLDAPADMIN_LDAP_HOSTS: "ldap"
+      PHPLDAPADMIN_HTTPS: "false"
+      PHPLDAPADMIN_TRUST_PROXY_SSL: "true"
+    ports:
+      - "8081:80"
+    networks:
+      - my-network
+    depends_on:
+      - ldap
+
+volumes:
+  mysql-data:
+
+networks:
+  my-network:
+    driver: bridge

@@ -1,0 +1,33 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: #d9e1e2;
+  --foreground: #171717;
+}
+
+@media (prefers-color-scheme: white) {
+  :root {
+    --background: #0a0a0a;
+    --foreground: #ededed;
+  }
+}
+
+body {
+  color: var(--foreground);
+  background: var(--background);
+  /* font-family: Arial, Helvetica, sans-serif; */
+}
+
+h1 {
+  font-family: var(--font-family-Praxis);
+}
+
+h2 {
+  font-family: var(--font-family-Praxis);
+}
+
+a {
+  font-family: var(--font-family-Praxis);
+}
