@@ -10,6 +10,7 @@ import {
 } from "@ant-design/icons";
 import { AuthService } from "@/services/auth";
 import MainLayout from "@/components/MainLayout";
+import ProtectedRoute from "@/components/ProtectedRoute";
 
 const Dashboard = () => {
   const router = useRouter();
@@ -175,30 +176,32 @@ const Dashboard = () => {
   }
 
   return (
-    <MainLayout>
-      <>
-        <Row gutter={[16, 16]}>
-          {statisticsData.map((stat, index) => (
-            <Col key={index} xs={24} sm={12} lg={8}>
-              <Card>
-                <Statistic
-                  title={stat.title}
-                  value={stat.value}
-                  prefix={stat.icon}
-                />
-              </Card>
-            </Col>
-          ))}
-        </Row>
-        <Card title="Chamados Recentes" style={{ marginTop: 16 }}>
-          <Table
-            columns={columns}
-            dataSource={recentAppointments}
-            pagination={{ pageSize: 5 }}
-          />
-        </Card>
-      </>
-    </MainLayout>
+    <ProtectedRoute allowedSetores={["TI"]}>
+      <MainLayout>
+        <>
+          <Row gutter={[16, 16]}>
+            {statisticsData.map((stat, index) => (
+              <Col key={index} xs={24} sm={12} lg={8}>
+                <Card>
+                  <Statistic
+                    title={stat.title}
+                    value={stat.value}
+                    prefix={stat.icon}
+                  />
+                </Card>
+              </Col>
+            ))}
+          </Row>
+          <Card title="Chamados Recentes" style={{ marginTop: 16 }}>
+            <Table
+              columns={columns}
+              dataSource={recentAppointments}
+              pagination={{ pageSize: 5 }}
+            />
+          </Card>
+        </>
+      </MainLayout>
+    </ProtectedRoute>
   );
 };
 

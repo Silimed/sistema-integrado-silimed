@@ -28,7 +28,7 @@ export default function LogoutButton() {
       danger
       icon={<LogoutOutlined />}
       onClick={handleLogout}
-      style={{ position: "absolute", top: "1rem", right: "1rem" }}
+      style={{ position: "relative", left: "93%", bottom: "50px" }}
     >
       Sair
     </Button>

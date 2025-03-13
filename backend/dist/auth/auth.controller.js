@@ -16,6 +16,7 @@ exports.AuthController = void 0;
 const common_1 = require("@nestjs/common");
 const auth_service_1 = require("./auth.service");
 const passport_1 = require("@nestjs/passport");
+const jwt = require("jsonwebtoken");
 let AuthController = class AuthController {
     authService;
     constructor(authService) {
@@ -75,38 +76,39 @@ let AuthController = class AuthController {
             throw new common_1.UnauthorizedException(error.message || "Erro na autenticação");
         }
     }
-    async validate(authorization) {
+    async validateToken(authHeader) {
         try {
-            console.log("Recebendo requisição de validação");
-            console.log("Authorization header:", authorization);
-            if (!authorization) {
-                console.log("Header de autorização não fornecido");
-                throw new common_1.UnauthorizedException("Header de autorização não fornecido");
+            if (!authHeader || !authHeader.startsWith("Bearer ")) {
+                return { valid: false, message: "Token não fornecido" };
             }
-            const token = authorization.replace(/^Bearer\s+/i, "").trim();
+            const token = authHeader.split(" ")[1];
             if (!token) {
-                console.log("Token não fornecido no header");
-                throw new common_1.UnauthorizedException("Token não fornecido");
+                return { valid: false, message: "Token inválido" };
             }
-            console.log("Token extraído, length:", token.length);
-            try {
-                const payload = await this.authService.validateToken(token);
-                console.log("Token validado com sucesso");
-                return {
-                    valid: true,
-                    payload,
-                    redirectTo: "/interceptor",
-                    setores: payload.setores || [],
-                };
+            const decodedToken = jwt.decode(token);
+            if (!decodedToken) {
+                return { valid: false, message: "Token inválido ou malformado" };
             }
-            catch (validationError) {
-                console.log("Erro na validação do token:", validationError.message);
-                throw new common_1.UnauthorizedException(validationError.message || "Token inválido");
+            const currentTime = Math.floor(Date.now() / 1000);
+            if (decodedToken.exp && decodedToken.exp < currentTime) {
+                return { valid: false, message: "Token expirado" };
             }
+            const setores = (decodedToken.groups || []).map((group) => group.replace(/^\/Setores\//, ""));
+            return {
+                valid: true,
+                payload: {
+                    sub: decodedToken.sub,
+                    email: decodedToken.email,
+                    name: decodedToken.name,
+                    groups: decodedToken.groups,
+                    roles: decodedToken.realm_access?.roles || [],
+                },
+                setores: setores,
+            };
         }
         catch (error) {
-            console.error("Erro na validação:", error);
-            throw new common_1.UnauthorizedException(error.message || "Erro na validação do token");
+            console.error("Erro na validação do token:", error);
+            return { valid: false, message: "Erro na validação do token" };
         }
     }
     async logout(res) {
@@ -135,7 +137,7 @@ __decorate([
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [String]),
     __metadata("design:returntype", Promise)
-], AuthController.prototype, "validate", null);
+], AuthController.prototype, "validateToken", null);
 __decorate([
     (0, common_1.Post)("logout"),
     __param(0, (0, common_1.Res)()),

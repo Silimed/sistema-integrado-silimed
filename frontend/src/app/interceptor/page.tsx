@@ -145,11 +145,11 @@ export default function Interceptor() {
 
   return (
     <div className={styles.container}>
-      <LogoutButton />
       {userData && (
         <div className={styles.userInfo}>
-          <Title level={4}>Bem-vindo(a), {userData.payload.given_name}</Title>
-          <p>Setor(es): {userData.setores.join(", ")}</p>
+          <Title level={4}>Bem-vindo(a): {userData.payload.name}</Title>
+          <p>Setor: {userData.setores?.join(", ") || "Não definido"}</p>
+          <LogoutButton />
         </div>
       )}
       <Title level={2} className={styles.title}>

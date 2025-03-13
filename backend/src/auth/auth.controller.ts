@@ -14,11 +14,18 @@ import { AuthService } from "./auth.service";
 import { AuthGuard } from "@nestjs/passport";
 //import { TokenValidationResponse } from "./interfaces/keycloak.interface";
 import { Response } from "express";
+import * as jwt from "jsonwebtoken";
+import { LoginCredentials } from "./interfaces/login-credentials.interface";
 
-// Interface para as credenciais
-interface LoginCredentials {
-  username: string;
-  password: string;
+interface DecodedToken {
+  sub: string;
+  email?: string;
+  name?: string;
+  groups?: string[];
+  realm_access?: {
+    roles: string[];
+  };
+  exp?: number;
 }
 
 @Controller("auth")
@@ -101,44 +108,49 @@ export class AuthController {
   }
 
   @Post("validate")
-  async validate(@Headers("authorization") authorization: string) {
+  async validateToken(@Headers("authorization") authHeader: string) {
     try {
-      console.log("Recebendo requisição de validação");
-      console.log("Authorization header:", authorization);
-
-      if (!authorization) {
-        console.log("Header de autorização não fornecido");
-        throw new UnauthorizedException("Header de autorização não fornecido");
+      if (!authHeader || !authHeader.startsWith("Bearer ")) {
+        return { valid: false, message: "Token não fornecido" };
       }
 
-      const token = authorization.replace(/^Bearer\s+/i, "").trim();
+      const token = authHeader.split(" ")[1];
       if (!token) {
-        console.log("Token não fornecido no header");
-        throw new UnauthorizedException("Token não fornecido");
+        return { valid: false, message: "Token inválido" };
       }
 
-      console.log("Token extraído, length:", token.length);
-
-      try {
-        const payload = await this.authService.validateToken(token);
-        console.log("Token validado com sucesso");
-        return {
-          valid: true,
-          payload,
-          redirectTo: "/interceptor",
-          setores: payload.setores || [],
-        };
-      } catch (validationError) {
-        console.log("Erro na validação do token:", validationError.message);
-        throw new UnauthorizedException(
-          validationError.message || "Token inválido"
-        );
+      // Decodifica o token JWT
+      const decodedToken = jwt.decode(token) as DecodedToken;
+      if (!decodedToken) {
+        return { valid: false, message: "Token inválido ou malformado" };
       }
-    } catch (error) {
-      console.error("Erro na validação:", error);
-      throw new UnauthorizedException(
-        error.message || "Erro na validação do token"
+
+      // Verifica a expiração do token
+      const currentTime = Math.floor(Date.now() / 1000);
+      if (decodedToken.exp && decodedToken.exp < currentTime) {
+        return { valid: false, message: "Token expirado" };
+      }
+
+      // Extrai os setores dos grupos
+      const setores = (decodedToken.groups || []).map((group) =>
+        group.replace(/^\/Setores\//, "")
       );
+
+      // Retorna os dados do token validado
+      return {
+        valid: true,
+        payload: {
+          sub: decodedToken.sub,
+          email: decodedToken.email,
+          name: decodedToken.name,
+          groups: decodedToken.groups,
+          roles: decodedToken.realm_access?.roles || [],
+        },
+        setores: setores,
+      };
+    } catch (error) {
+      console.error("Erro na validação do token:", error);
+      return { valid: false, message: "Erro na validação do token" };
     }
   }
 

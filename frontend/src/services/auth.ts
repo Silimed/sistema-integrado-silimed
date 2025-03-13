@@ -10,53 +10,49 @@ axios.defaults.headers.common["Content-Type"] = "application/json";
 
 export const AuthService = {
   setToken() {
-    console.log("Token recebido do servidor");
-    this.setupAxiosInterceptors();
-  },
-
-  isAuthenticated() {
-    const cookies = this.getCookies();
-    console.log("Verificando autenticação...");
-    console.log("Cookies disponíveis:", cookies);
-
-    const hasAuthCookie = cookies.hasOwnProperty("auth_token");
-    console.log("Cookie auth_token encontrado?", hasAuthCookie);
-
-    return hasAuthCookie;
-  },
-
-  getCookies(): { [key: string]: string } {
-    return document.cookie
-      .split(";")
-      .reduce((cookies: { [key: string]: string }, cookie) => {
-        const [name, value] = cookie.trim().split("=");
-        // Decodifica o valor do cookie
-        cookies[name] = decodeURIComponent(value || "");
-        return cookies;
-      }, {});
-  },
-
-  getAuthToken(): string | null {
-    const cookies = this.getCookies();
-    const token = cookies["auth_token"];
-    if (token) {
-      try {
-        // Decodifica o token que está em formato URI encoded
-        const decodedToken = decodeURIComponent(token);
-        console.log("Token decodificado, length:", decodedToken.length);
-        return decodedToken;
-      } catch (error) {
-        console.error("Erro ao decodificar token:", error);
-        return null;
-      }
+    const cookies = document.cookie.split(";");
+    const authCookie = cookies.find((cookie) =>
+      cookie.trim().startsWith("auth_token=")
+    );
+    if (authCookie) {
+      const token = decodeURIComponent(authCookie.split("=")[1]);
+      localStorage.setItem("auth_token", token);
+      return true;
     }
+    return false;
+  },
+
+  getAuthToken() {
+    // Primeiro tenta pegar do cookie
+    const cookies = document.cookie.split(";");
+    const authCookie = cookies.find((cookie) =>
+      cookie.trim().startsWith("auth_token=")
+    );
+    if (authCookie) {
+      return decodeURIComponent(authCookie.split("=")[1]);
+    }
+
+    // Se não encontrar no cookie, tenta pegar do localStorage
+    const token = localStorage.getItem("auth_token");
+    if (token) {
+      return token;
+    }
+
     return null;
   },
 
   removeToken() {
+    // Remove do localStorage
+    localStorage.removeItem("auth_token");
+
+    // Remove o cookie
     document.cookie =
-      "auth_token=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT; domain=localhost";
-    console.log("Token removido");
+      "auth_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; domain=localhost;";
+  },
+
+  isAuthenticated() {
+    const token = this.getAuthToken();
+    return !!token;
   },
 
   async logout() {
@@ -80,6 +76,13 @@ export const AuthService = {
     // Adiciona novos interceptors
     axios.interceptors.request.use(
       (config) => {
+        const token = this.getAuthToken();
+        if (token) {
+          config.headers.Authorization = `Bearer ${token}`;
+        }
+
+        config.withCredentials = true;
+
         console.log("Enviando requisição:", {
           url: config.url,
           withCredentials: config.withCredentials,
@@ -109,8 +112,10 @@ export const AuthService = {
           data: error.response?.data,
           headers: error.response?.headers,
         });
+
         if (error.response?.status === 401) {
           console.log("Erro 401: Token inválido ou expirado");
+          this.removeToken();
           window.location.href = "/login";
         }
         return Promise.reject(error);
