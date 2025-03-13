@@ -5,6 +5,9 @@ import { KeycloakStrategy } from "./keycloak.strategy";
 import { AuthController } from "./auth.controller";
 import { AuthService } from "./auth.service";
 import { HttpModule } from "@nestjs/axios";
+import { ApplicationsController } from "./applications.controller";
+//import { QuickOrderController } from "./quick-order.controller";
+//import { QuickOrderService } from "./quick-order.service";
 
 @Module({
   imports: [
@@ -17,7 +20,7 @@ import { HttpModule } from "@nestjs/axios";
     }),
   ],
   providers: [KeycloakStrategy, AuthService],
-  controllers: [AuthController],
+  controllers: [AuthController, ApplicationsController],
   exports: [AuthService],
 })
 export class AuthModule {}

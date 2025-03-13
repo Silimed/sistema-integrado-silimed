@@ -1,15 +1,32 @@
 import { Strategy } from "passport-jwt";
-import { HttpService } from "@nestjs/axios";
-declare const KeycloakStrategy_base: new (...args: [opt: import("passport-jwt").StrategyOptionsWithoutRequest] | [opt: import("passport-jwt").StrategyOptionsWithRequest]) => Strategy & {
+interface KeycloakPayload {
+    sub: string;
+    preferred_username: string;
+    realm_access?: {
+        roles?: string[];
+    };
+    groups?: string[];
+    resource_access?: {
+        [key: string]: {
+            roles?: string[];
+            groups?: string[];
+        };
+    };
+}
+declare const KeycloakStrategy_base: new (...args: [opt: import("passport-jwt").StrategyOptionsWithRequest] | [opt: import("passport-jwt").StrategyOptionsWithoutRequest]) => Strategy & {
     validate(...args: any[]): unknown;
 };
 export declare class KeycloakStrategy extends KeycloakStrategy_base {
-    private readonly httpService;
-    constructor(httpService: HttpService);
-    validate(payload: any): Promise<{
-        userId: any;
-        username: any;
-        roles: any;
+    constructor();
+    validate(payload: KeycloakPayload): Promise<{
+        userId: string;
+        username: string;
+        roles: string[];
+        groups: string[];
+        realm_access: {
+            roles: string[];
+            groups: string[];
+        };
     }>;
 }
 export {};

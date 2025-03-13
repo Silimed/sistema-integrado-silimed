@@ -1,38 +1,31 @@
-import type { Metadata } from "next";
+"use client";
+
+import { Inter } from "next/font/google";
+import { ConfigProvider } from "antd";
+import ptBR from "antd/locale/pt_BR";
 import "./globals.css";
-import { Nunito } from "next/font/google";
-import localFont from "next/font/local";
-import dynamic from "next/dynamic";
-import { AntdProvider } from "@/providers/AntdProvider";
-//import "antd/dist/antd.min.css";
 
-const nunito = Nunito({
-  subsets: ["latin"],
-  display: "swap",
-  weight: ["200", "300", "400", "500"],
-  style: ["normal", "italic"],
-});
-
-const praxisCom = localFont({
-  src: "./fonts/PraxisCom-Regular.ttf",
-  variable: "--font-family-Praxis",
-});
-
-export const metadata: Metadata = {
-  title: "Sistema Integrado Silimed",
-};
+const inter = Inter({ subsets: ["latin"] });
 
 export default function RootLayout({
   children,
-}: Readonly<{
+}: {
   children: React.ReactNode;
-}>) {
+}) {
   return (
-    <html lang="pt-BR" className={praxisCom.variable}>
-      <body className={nunito.className}>
-        <AntdProvider fontFamily={nunito.style.fontFamily}>
+    <html lang="pt-BR">
+      <body className={inter.className}>
+        <ConfigProvider
+          locale={ptBR}
+          theme={{
+            token: {
+              colorPrimary: "#1890ff",
+              borderRadius: 6,
+            },
+          }}
+        >
           {children}
-        </AntdProvider>
+        </ConfigProvider>
       </body>
     </html>
   );

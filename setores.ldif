@@ -1,0 +1,54 @@
+# Criar OU para setores
+dn: ou=setores,dc=silimed,dc=local
+objectClass: organizationalUnit
+objectClass: top
+ou: setores
+
+# Setor de TI
+dn: cn=TI,ou=setores,dc=silimed,dc=local
+objectClass: groupOfNames
+objectClass: top
+cn: TI
+description: Setor de Tecnologia da Informação
+member: cn=Arthur Lima,ou=usuarios,dc=silimed,dc=local
+
+# Setor de Desenvolvimento
+dn: cn=Desenvolvimento,ou=setores,dc=silimed,dc=local
+objectClass: groupOfNames
+objectClass: top
+cn: Desenvolvimento
+description: Setor de Desenvolvimento de Software
+member: cn=Arthur Lima,ou=usuarios,dc=silimed,dc=local
+member: cn=Reinaldo Scagliera,ou=usuarios,dc=silimed,dc=local
+
+# Setor de Infraestrutura
+dn: cn=Infraestrutura,ou=setores,dc=silimed,dc=local
+objectClass: groupOfNames
+objectClass: top
+cn: Infraestrutura
+description: Setor de Infraestrutura de TI
+member: cn=admin,dc=silimed,dc=local
+
+# Setor Comercial
+dn: cn=Comercial,ou=setores,dc=silimed,dc=local
+objectClass: groupOfNames
+objectClass: top
+cn: Comercial
+description: Setor Comercial
+member: cn=admin,dc=silimed,dc=local
+
+# Setor Financeiro
+dn: cn=Financeiro,ou=setores,dc=silimed,dc=local
+objectClass: groupOfNames
+objectClass: top
+cn: Financeiro
+description: Setor Financeiro
+member: cn=admin,dc=silimed,dc=local
+
+# Setor de RH
+dn: cn=RH,ou=setores,dc=silimed,dc=local
+objectClass: groupOfNames
+objectClass: top
+cn: RH
+description: Recursos Humanos
+member: cn=admin,dc=silimed,dc=local 

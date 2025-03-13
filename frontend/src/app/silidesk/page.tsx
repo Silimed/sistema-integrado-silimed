@@ -1,6 +1,5 @@
-/* eslint-disable react-hooks/rules-of-hooks */
 "use client";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   MenuFoldOutlined,
   MenuUnfoldOutlined,
@@ -8,20 +7,87 @@ import {
   UserOutlined,
   VideoCameraOutlined,
 } from "@ant-design/icons";
-import { Button, Layout, Menu, theme } from "antd";
+import { Button, Layout, Menu, theme, message } from "antd";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 import logoAberta from "../../../public/logo-silimed-laranja-aberta.png";
 import logoFechada from "../../../public/logo-sem-nome.png";
+import { AuthService } from "@/services/auth";
+import axios from "axios";
+
 const { Header, Sider, Content } = Layout;
 
-const silidesk = () => {
+const Silidesk = () => {
   const [collapsed, setCollapsed] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const router = useRouter();
   const {
     token: { colorBgContainer, borderRadiusLG },
   } = theme.useToken();
 
+  useEffect(() => {
+    const verifyAuth = async () => {
+      try {
+        if (!AuthService.isAuthenticated()) {
+          message.error("Sessão expirada. Por favor, faça login novamente.");
+          router.push("/login");
+          return;
+        }
+
+        // Configura os interceptors do Axios
+        AuthService.setupAxiosInterceptors();
+
+        // Validar o token no backend
+        const response = await axios.post("/auth/validate");
+
+        if (!response.data.valid) {
+          throw new Error("Token inválido");
+        }
+
+        // Verificar se o usuário tem permissão para acessar o Silidesk
+        const userGroups = response.data.payload.groups || [];
+        const allowedGroups = ["TI", "Desenvolvimento", "Infraestrutura", "RH"];
+
+        const hasPermission = userGroups.some((group: string) => {
+          const groupName = group.replace(/^\/Setores\//, "");
+          return allowedGroups.includes(groupName);
+        });
+
+        if (!hasPermission) {
+          message.error("Você não tem permissão para acessar esta aplicação.");
+          router.push("/interceptor");
+          return;
+        }
+
+        setLoading(false);
+      } catch (error) {
+        console.error("Erro na verificação de autenticação:", error);
+        AuthService.removeToken();
+        message.error("Sessão expirada. Por favor, faça login novamente.");
+        router.push("/login");
+      }
+    };
+
+    verifyAuth();
+  }, [router]);
+
+  if (loading) {
+    return (
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "center",
+          height: "100vh",
+        }}
+      >
+        Carregando...
+      </div>
+    );
+  }
+
   return (
-    <Layout>
+    <Layout style={{ minHeight: "100vh" }}>
       <Sider trigger={null} collapsible collapsed={collapsed}>
         <div>
           {collapsed ? (
@@ -98,4 +164,4 @@ const silidesk = () => {
   );
 };
 
-export default silidesk;
+export default Silidesk;

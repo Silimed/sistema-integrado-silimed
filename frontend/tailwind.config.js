@@ -6,11 +6,10 @@ module.exports = {
     './src/app/**/*.{js,ts,jsx,tsx,mdx}',
   ],
   theme: {
-    extend: {
-      fontFamily: {
-        sans: ['var(--font-family-Praxis)', 'sans-serif'],
-      },
-    },
+    extend: {},
   },
   plugins: [],
+  corePlugins: {
+    preflight: false, // Desabilita o reset CSS do Tailwind para não conflitar com Ant Design
+  },
 } 

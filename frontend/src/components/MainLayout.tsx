@@ -26,10 +26,13 @@ import {
   DatabaseOutlined,
   SunOutlined,
   MoonOutlined,
+  OrderedListOutlined,
 } from "@ant-design/icons";
 import Image from "next/image";
 import logoAberta from "../../public/logo-silimed-laranja-aberta.png";
 import logoFechada from "../../public/logo-sem-nome.png";
+import { AuthService } from "@/services/auth";
+
 const { Header, Sider, Content } = Layout;
 
 interface MainLayoutProps {
@@ -40,6 +43,12 @@ const MainLayout = ({ children }: MainLayoutProps) => {
   const router = useRouter();
   const [collapsed, setCollapsed] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(false);
+  const [selectedKey, setSelectedKey] = useState(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("selectedKey") || "1";
+    }
+    return "1";
+  });
   const {
     token: { borderRadiusLG },
   } = theme.useToken();
@@ -48,7 +57,6 @@ const MainLayout = ({ children }: MainLayoutProps) => {
   const customTheme = {
     token: {
       colorPrimary: "#86898be5",
-
       borderRadius: 6,
     },
     components: {
@@ -90,9 +98,15 @@ const MainLayout = ({ children }: MainLayoutProps) => {
       {
         key: "3",
         label: "Sair",
-        onClick: () => {
-          localStorage.removeItem("access_token");
-          router.push("/login");
+        onClick: async () => {
+          try {
+            await AuthService.logout();
+            router.push("/login");
+          } catch (error) {
+            console.error("Erro ao fazer logout:", error);
+            AuthService.removeToken();
+            router.push("/login");
+          }
         },
       },
     ],
@@ -106,7 +120,7 @@ const MainLayout = ({ children }: MainLayoutProps) => {
           collapsible
           collapsed={collapsed}
           style={{
-            background: "#fff",
+            background: "#001529",
           }}
         >
           <div>
@@ -116,14 +130,7 @@ const MainLayout = ({ children }: MainLayoutProps) => {
                 alt="logo"
                 width={30}
                 height={30}
-                style={{
-                  marginTop: 16,
-                  marginBottom: 16,
-                  alignItems: "center",
-                  justifyContent: "center",
-                  marginLeft: "auto",
-                  marginRight: "auto",
-                }}
+                style={{ margin: 16 }}
               />
             ) : (
               <Image
@@ -132,25 +139,24 @@ const MainLayout = ({ children }: MainLayoutProps) => {
                 width={90}
                 height={30}
                 style={{
-                  marginLeft: "auto",
-                  marginRight: "auto",
+                  margin: 16,
                   alignItems: "center",
                   justifyContent: "center",
-                  display: "flex",
-                  marginTop: 10,
-                  marginBottom: 10,
                 }}
               />
             )}
           </div>
+
           <Menu
             theme="light"
             mode="inline"
-            defaultSelectedKeys={["1"]}
+            selectedKeys={[selectedKey]}
             style={{
               background: "#fff",
             }}
             onClick={({ key }) => {
+              setSelectedKey(key);
+              localStorage.setItem("selectedKey", key);
               switch (key) {
                 case "1":
                   handleMenuClick("/dashboard");
@@ -166,6 +172,9 @@ const MainLayout = ({ children }: MainLayoutProps) => {
                   break;
                 case "5":
                   handleMenuClick("/projects");
+                  break;
+                case "6":
+                  handleMenuClick("/kanban");
                   break;
               }
             }}
@@ -194,6 +203,11 @@ const MainLayout = ({ children }: MainLayoutProps) => {
                 key: "5",
                 icon: <ProjectOutlined />,
                 label: "Novos Projetos",
+              },
+              {
+                key: "6",
+                icon: <OrderedListOutlined />,
+                label: "Kanban de Demandas",
               },
             ]}
           />

@@ -8,6 +8,7 @@ import {
   ClockCircleOutlined,
   CheckCircleOutlined,
 } from "@ant-design/icons";
+import { AuthService } from "@/services/auth";
 import MainLayout from "@/components/MainLayout";
 
 const Dashboard = () => {
@@ -122,23 +123,21 @@ const Dashboard = () => {
 
   const verifyToken = useCallback(async () => {
     try {
-      const token = localStorage.getItem("access_token");
-
-      if (!token) {
+      if (!AuthService.isAuthenticated()) {
         throw new Error("Token não encontrado");
       }
 
-      // Configuração global do Axios para incluir o token
-      axios.defaults.headers.common["Authorization"] = `Bearer ${token}`;
+      // Configura os interceptors do Axios
+      AuthService.setupAxiosInterceptors();
 
       // Tenta buscar os dados do dashboard
-      await axios.get("http://localhost:3001/dashboard");
+      await axios.get("/dashboard");
       setLoading(false);
     } catch (error) {
       console.error("Erro na verificação do token:", error);
 
       // Remove o token inválido
-      localStorage.removeItem("access_token");
+      AuthService.removeToken();
 
       // Mostra mensagem de erro apropriada
       if (axios.isAxiosError(error)) {

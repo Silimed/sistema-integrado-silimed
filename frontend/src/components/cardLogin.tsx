@@ -1,5 +1,5 @@
 "use client";
-import { Dispatch, FormEvent, SetStateAction } from "react";
+import { Dispatch, SetStateAction } from "react";
 import { Input, Button, Form, Card } from "antd";
 import { EyeOutlined, EyeInvisibleOutlined } from "@ant-design/icons";
 import Image from "next/image";
@@ -14,7 +14,7 @@ interface CardLoginProps {
   toggleVisionPassword: () => void;
   loading: boolean;
   error: string;
-  onSubmit: (e: FormEvent) => void;
+  handleLogin: () => Promise<void>;
 }
 
 export default function LoginCard({
@@ -26,7 +26,7 @@ export default function LoginCard({
   toggleVisionPassword,
   loading,
   error,
-  onSubmit,
+  handleLogin,
 }: CardLoginProps) {
   return (
     <div
@@ -35,6 +35,7 @@ export default function LoginCard({
         justifyContent: "center",
         alignItems: "center",
         height: "100vh",
+        backgroundColor: "#D9E1E2",
       }}
     >
       <Card
@@ -98,13 +99,16 @@ export default function LoginCard({
               marginTop: 8,
             }}
           >
-            Entre com sua matricula e sua senha para realizar o acesso ao novo
-            SiliDEV
+            Entre com sua matricula e sua senha
+            <br />
+            para realizar o acesso ao novo
+            <br />
+            Sistema Integrado Silimed
           </p>
 
           <Form
             layout="vertical"
-            onFinish={onSubmit}
+            onFinish={handleLogin}
             style={{ display: "flex", flexDirection: "column", gap: 16 }}
           >
             {/* Campo Email Corporativo */}
@@ -126,7 +130,7 @@ export default function LoginCard({
                 value={matricula}
                 onChange={(e) => setMatricula(e.target.value)}
                 placeholder="
-                digite aqui sua matricula"
+              digite aqui sua matricula"
                 style={{ height: 40, borderRadius: 4, width: "100%" }}
               />
             </Form.Item>
@@ -166,7 +170,7 @@ export default function LoginCard({
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="
-                digite aqui sua senha"
+              digite aqui sua senha"
                 style={{ height: 40, borderRadius: 4, width: "100%" }}
                 iconRender={(visible) =>
                   visible ? <EyeOutlined /> : <EyeInvisibleOutlined />
@@ -220,6 +224,18 @@ export default function LoginCard({
           </Form>
         </div>
       </Card>
+
+      <footer
+        style={{
+          position: "absolute",
+          bottom: "16px",
+          color: "#666666",
+          fontSize: "12px",
+          textAlign: "center",
+        }}
+      >
+        2025 © Desenvolvido por Silimed Empresa de Implantes LTDA
+      </footer>
     </div>
   );
 }

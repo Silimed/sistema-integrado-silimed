@@ -1,0 +1,31 @@
+# Setor de Infraestrutura
+dn: cn=Infraestrutura,ou=setores,dc=silimed,dc=local
+objectClass: groupOfNames
+objectClass: top
+cn: Infraestrutura
+description: Setor de Infraestrutura de TI
+member: cn=admin,dc=silimed,dc=local
+
+# Setor Comercial
+dn: cn=Comercial,ou=setores,dc=silimed,dc=local
+objectClass: groupOfNames
+objectClass: top
+cn: Comercial
+description: Setor Comercial
+member: cn=admin,dc=silimed,dc=local
+
+# Setor Financeiro
+dn: cn=Financeiro,ou=setores,dc=silimed,dc=local
+objectClass: groupOfNames
+objectClass: top
+cn: Financeiro
+description: Setor Financeiro
+member: cn=admin,dc=silimed,dc=local
+
+# Setor de RH
+dn: cn=RH,ou=setores,dc=silimed,dc=local
+objectClass: groupOfNames
+objectClass: top
+cn: RH
+description: Recursos Humanos
+member: cn=admin,dc=silimed,dc=local 

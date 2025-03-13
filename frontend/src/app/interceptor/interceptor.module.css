@@ -1,0 +1,82 @@
+.container {
+  padding: 2rem;
+  min-height: 100vh;
+  background-color: #f0f2f5;
+}
+
+.title {
+  text-align: center;
+  margin-bottom: 32px !important;
+  color: #1890ff;
+}
+
+.loadingContainer {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+}
+
+.cardGrid {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.card {
+  height: 100%;
+  transition: all 0.3s ease;
+}
+
+.card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.cardContent {
+  text-align: center;
+}
+
+.imageContainer {
+  width: 64px;
+  height: 64px;
+  margin: 0 auto 50px;
+  position: relative;
+}
+
+.appImage {
+  object-fit: contain;
+  border-radius: 8px;
+}
+
+.cardTitle {
+  margin: 16px 0 8px !important;
+  color: #262626;
+}
+
+.cardDescription {
+  color: #595959;
+  margin: 0;
+  font-size: 14px;
+}
+
+.empty {
+  margin-top: 48px;
+}
+
+.userInfo {
+  background-color: white;
+  padding: 1rem;
+  border-radius: 8px;
+  margin-bottom: 2rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.userInfo h4 {
+  margin: 0;
+  color: #1890ff;
+}
+
+.userInfo p {
+  margin: 0.5rem 0 0;
+  color: #666;
+}

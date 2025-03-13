@@ -1,0 +1,4 @@
+dn: cn=TI,ou=setores,dc=silimed,dc=local
+changetype: modify
+add: member
+member: cn=Reinaldo Scagliera,ou=usuarios,dc=silimed,dc=local 

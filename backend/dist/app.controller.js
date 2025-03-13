@@ -13,13 +13,16 @@ exports.AppController = void 0;
 const common_1 = require("@nestjs/common");
 const passport_1 = require("@nestjs/passport");
 const auth_service_1 = require("./auth/auth.service");
+const app_service_1 = require("./app.service");
 let AppController = class AppController {
     authService;
-    constructor(authService) {
+    appService;
+    constructor(authService, appService) {
         this.authService = authService;
+        this.appService = appService;
     }
     getHello() {
-        return this.authService.getHello();
+        return this.appService.getHello();
     }
     getDashboard() {
         return {
@@ -43,6 +46,7 @@ __decorate([
 ], AppController.prototype, "getDashboard", null);
 exports.AppController = AppController = __decorate([
     (0, common_1.Controller)(),
-    __metadata("design:paramtypes", [auth_service_1.AuthService])
+    __metadata("design:paramtypes", [auth_service_1.AuthService,
+        app_service_1.AppService])
 ], AppController);
 //# sourceMappingURL=app.controller.js.map

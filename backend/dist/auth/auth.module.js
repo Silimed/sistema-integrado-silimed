@@ -14,6 +14,7 @@ const keycloak_strategy_1 = require("./keycloak.strategy");
 const auth_controller_1 = require("./auth.controller");
 const auth_service_1 = require("./auth.service");
 const axios_1 = require("@nestjs/axios");
+const applications_controller_1 = require("./applications.controller");
 let AuthModule = class AuthModule {
 };
 exports.AuthModule = AuthModule;
@@ -29,7 +30,7 @@ exports.AuthModule = AuthModule = __decorate([
             }),
         ],
         providers: [keycloak_strategy_1.KeycloakStrategy, auth_service_1.AuthService],
-        controllers: [auth_controller_1.AuthController],
+        controllers: [auth_controller_1.AuthController, applications_controller_1.ApplicationsController],
         exports: [auth_service_1.AuthService],
     })
 ], AuthModule);
