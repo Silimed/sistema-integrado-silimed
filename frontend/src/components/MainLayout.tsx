@@ -61,7 +61,7 @@ const MainLayout = ({ children }: MainLayoutProps) => {
     },
     components: {
       Layout: {
-        siderBg: isDarkMode ? "#001529" : "#001529",
+        siderBg: isDarkMode ? "#001529" : "#fff",
         headerBg: isDarkMode ? "#001529" : "#fff",
       },
       Menu: {
@@ -120,7 +120,7 @@ const MainLayout = ({ children }: MainLayoutProps) => {
           collapsible
           collapsed={collapsed}
           style={{
-            background: "#001529",
+            background: isDarkMode ? "#141414" : "#fff",
           }}
         >
           <div>
@@ -129,17 +129,25 @@ const MainLayout = ({ children }: MainLayoutProps) => {
                 src={logoFechada}
                 alt="logo"
                 width={30}
-                height={30}
-                style={{ margin: 16 }}
+                height={40}
+                style={{
+                  marginLeft: 26,
+                  marginTop: 20,
+                  marginBottom: 10,
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
               />
             ) : (
               <Image
                 src={logoAberta}
                 alt="logo"
-                width={90}
-                height={30}
+                width={120}
+                height={40}
                 style={{
-                  margin: 16,
+                  marginLeft: 30,
+                  marginTop: 20,
+                  marginBottom: 10,
                   alignItems: "center",
                   justifyContent: "center",
                 }}
@@ -152,7 +160,7 @@ const MainLayout = ({ children }: MainLayoutProps) => {
             mode="inline"
             selectedKeys={[selectedKey]}
             style={{
-              background: "#fff",
+              background: isDarkMode ? "#141414" : "#fff",
             }}
             onClick={({ key }) => {
               setSelectedKey(key);
@@ -216,7 +224,7 @@ const MainLayout = ({ children }: MainLayoutProps) => {
           <Header
             style={{
               padding: 0,
-              background: isDarkMode ? "#001529" : "#fff",
+              background: isDarkMode ? "#141414" : "#fff",
               display: "flex",
               justifyContent: "space-between",
               alignItems: "center",
