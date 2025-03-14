@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Layout,
   Card,
@@ -14,7 +14,7 @@ import {
   Row,
   Col,
   Tag,
-  Tooltip,
+  Spin,
 } from "antd";
 import {
   UserOutlined,
@@ -22,300 +22,353 @@ import {
   PhoneOutlined,
   TeamOutlined,
   EditOutlined,
-  CloudOutlined,
-  DatabaseOutlined,
-  DollarOutlined,
-  FileProtectOutlined,
-  ToolOutlined,
-  WindowsOutlined,
 } from "@ant-design/icons";
+import { AuthService } from "@/services/auth";
+import axios from "axios";
+import { useRouter } from "next/navigation";
+import MainLayout from "@/components/MainLayout";
+import ProtectedRoute from "@/components/ProtectedRoute";
+import Image from "next/image";
 
 const { Content } = Layout;
 const { Title } = Typography;
 
-interface UserData {
-  name: string;
+interface UserPayload {
+  sub: string;
   email: string;
-  department: string;
-  role: string;
-  phone: string;
-  joinDate: string;
-  lastAccess: string;
+  name: string;
+  preferred_username?: string;
+  given_name?: string;
+  family_name?: string;
+  groups?: string[];
+  roles?: string[];
+}
+
+interface UserData {
+  valid: boolean;
+  payload: UserPayload;
+  setores: string[];
 }
 
 interface Application {
+  id: string;
   name: string;
-  icon: React.ReactNode;
   description: string;
-  status: "active" | "inactive" | "pending";
-  type: string;
+  url: string;
+  icon: string;
+  setoresPermitidos: string[];
+}
+
+interface FormValues {
+  name: string;
+  email: string;
+  phone: string;
 }
 
 const ProfilePage = () => {
   const [isEditing, setIsEditing] = useState(false);
-  const [form] = Form.useForm<UserData>();
+  const [form] = Form.useForm();
+  const [userData, setUserData] = useState<UserData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [applications, setApplications] = useState<Application[]>([]);
+  const router = useRouter();
 
-  // Dados mockados do usuário
-  const userData: UserData = {
-    name: "João Silva",
-    email: "joao.silva@empresa.com",
-    department: "TI",
-    role: "Analista de Suporte",
-    phone: "(11) 98765-4321",
-    joinDate: "01/01/2023",
-    lastAccess: "07/03/2024 15:30",
-  };
+  useEffect(() => {
+    const fetchUserDataAndApplications = async () => {
+      try {
+        setLoading(true);
+        const isAuthenticated = AuthService.isAuthenticated();
 
-  // Lista de aplicações empresariais
-  const applications: Application[] = [
-    {
-      name: "SAP ERP",
-      icon: <WindowsOutlined />,
-      description: "Sistema de Gestão Empresarial",
-      status: "active",
-      type: "ERP",
-    },
-    {
-      name: "Salesforce",
-      icon: <CloudOutlined />,
-      description: "CRM e Gestão de Vendas",
-      status: "active",
-      type: "CRM",
-    },
-    {
-      name: "Oracle Database",
-      icon: <DatabaseOutlined />,
-      description: "Banco de Dados Corporativo",
-      status: "active",
-      type: "Database",
-    },
-    {
-      name: "Jira",
-      icon: <ToolOutlined />,
-      description: "Gestão de Projetos e Tickets",
-      status: "active",
-      type: "Project Management",
-    },
-    {
-      name: "Microsoft 365",
-      icon: <WindowsOutlined />,
-      description: "Suite de Produtividade",
-      status: "active",
-      type: "Office Suite",
-    },
-    {
-      name: "ADP Folha",
-      icon: <DollarOutlined />,
-      description: "Sistema de Folha de Pagamento",
-      status: "active",
-      type: "HR",
-    },
-    {
-      name: "Confluence",
-      icon: <FileProtectOutlined />,
-      description: "Base de Conhecimento",
-      status: "active",
-      type: "Documentation",
-    },
-    {
-      name: "Power BI",
-      icon: <WindowsOutlined />,
-      description: "Análise de Dados e Relatórios",
-      status: "active",
-      type: "Business Intelligence",
-    },
-  ];
+        if (!isAuthenticated) {
+          message.error("Sessão expirada. Por favor, faça login novamente.");
+          router.push("/login");
+          return;
+        }
 
-  const getStatusColor = (status: Application["status"]) => {
-    switch (status) {
-      case "active":
-        return "success";
-      case "inactive":
-        return "error";
-      case "pending":
-        return "warning";
-      default:
-        return "default";
-    }
-  };
+        // Configura os interceptors do Axios
+        AuthService.setupAxiosInterceptors();
 
-  const onFinish = (values: UserData) => {
+        // Valida o token e obtém os dados do usuário
+        const token = AuthService.getAuthToken();
+        if (!token) {
+          throw new Error("Token não encontrado");
+        }
+
+        const validationResponse = await axios.post(
+          "/auth/validate",
+          {},
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+              "Content-Type": "application/json",
+            },
+          }
+        );
+
+        if (!validationResponse.data.valid) {
+          message.error("Token inválido. Por favor, faça login novamente.");
+          AuthService.removeToken();
+          router.push("/login");
+          return;
+        }
+
+        // Armazena os dados do usuário
+        setUserData(validationResponse.data);
+
+        // Inicializa o formulário com os dados do usuário
+        form.setFieldsValue({
+          name: validationResponse.data.payload.name,
+          email: validationResponse.data.payload.email,
+          phone: "", // O telefone não vem no token, então mantemos vazio
+        });
+
+        // Busca as aplicações disponíveis
+        try {
+          const response = await axios.get("/applications", {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          });
+          setApplications(response.data);
+        } catch (appError) {
+          console.error("Erro na busca de aplicações:", appError);
+
+          // Se falhar, tenta o endpoint alternativo com guard
+          if (
+            axios.isAxiosError(appError) &&
+            appError.response?.status === 401
+          ) {
+            try {
+              const guardResponse = await axios.get("/applications/guard", {
+                headers: {
+                  Authorization: `Bearer ${token}`,
+                },
+              });
+              setApplications(guardResponse.data);
+            } catch (guardError) {
+              console.error("Erro também no endpoint com guard:", guardError);
+              throw guardError;
+            }
+          } else {
+            throw appError;
+          }
+        }
+      } catch (error) {
+        console.error("Erro ao obter dados:", error);
+        message.error(
+          "Erro ao carregar dados do perfil. Por favor, tente novamente."
+        );
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchUserDataAndApplications();
+  }, [router, form]);
+
+  const onFinish = (values: FormValues) => {
     console.log("Valores atualizados:", values);
     message.success("Perfil atualizado com sucesso!");
     setIsEditing(false);
   };
 
+  const handleCardClick = (url: string) => {
+    if (url.startsWith("http")) {
+      window.open(url, "_blank");
+    } else {
+      router.push(url);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "center",
+          height: "100vh",
+        }}
+      >
+        <Spin size="large" />
+      </div>
+    );
+  }
+
   return (
-    <Content style={{ padding: "24px", maxWidth: 1000, margin: "0 auto" }}>
-      <Card>
-        <Row gutter={[24, 24]} align="middle">
-          <Col xs={24} sm={8} style={{ textAlign: "center" }}>
-            <Avatar
-              size={120}
-              icon={<UserOutlined />}
-              style={{ backgroundColor: "#1890ff" }}
-            />
-            <Title level={3} style={{ marginTop: 16, marginBottom: 0 }}>
-              {userData.name}
-            </Title>
-            <Typography.Text type="secondary">{userData.role}</Typography.Text>
-          </Col>
-          <Col xs={24} sm={16}>
-            {!isEditing ? (
-              <>
-                <div
-                  style={{
-                    display: "flex",
-                    justifyContent: "flex-end",
-                    marginBottom: 16,
-                  }}
-                >
-                  <Button
-                    type="primary"
-                    icon={<EditOutlined />}
-                    onClick={() => setIsEditing(true)}
-                  >
-                    Editar Perfil
-                  </Button>
-                </div>
-                <Descriptions column={1} bordered>
-                  <Descriptions.Item label="Email">
-                    <MailOutlined /> {userData.email}
-                  </Descriptions.Item>
-                  <Descriptions.Item label="Departamento">
-                    <TeamOutlined /> {userData.department}
-                  </Descriptions.Item>
-                  <Descriptions.Item label="Telefone">
-                    <PhoneOutlined /> {userData.phone}
-                  </Descriptions.Item>
-                  <Descriptions.Item label="Data de Admissão">
-                    {userData.joinDate}
-                  </Descriptions.Item>
-                  <Descriptions.Item label="Último Acesso">
-                    {userData.lastAccess}
-                  </Descriptions.Item>
-                </Descriptions>
-              </>
-            ) : (
-              <Form
-                form={form}
-                layout="vertical"
-                initialValues={userData}
-                onFinish={onFinish}
-              >
-                <Form.Item
-                  name="name"
-                  label="Nome"
-                  rules={[
-                    { required: true, message: "Por favor, insira seu nome" },
-                  ]}
-                >
-                  <Input prefix={<UserOutlined />} />
-                </Form.Item>
-                <Form.Item
-                  name="email"
-                  label="Email"
-                  rules={[
-                    { required: true, message: "Por favor, insira seu email" },
-                    { type: "email", message: "Email inválido" },
-                  ]}
-                >
-                  <Input prefix={<MailOutlined />} />
-                </Form.Item>
-                <Form.Item
-                  name="phone"
-                  label="Telefone"
-                  rules={[
-                    {
-                      required: true,
-                      message: "Por favor, insira seu telefone",
-                    },
-                  ]}
-                >
-                  <Input prefix={<PhoneOutlined />} />
-                </Form.Item>
-                <Form.Item>
-                  <Button type="primary" htmlType="submit">
-                    Salvar
-                  </Button>
-                  <Button
-                    style={{ marginLeft: 8 }}
-                    onClick={() => setIsEditing(false)}
-                  >
-                    Cancelar
-                  </Button>
-                </Form.Item>
-              </Form>
-            )}
-          </Col>
-        </Row>
-
-        <Divider />
-
-        <Row gutter={[16, 16]}>
-          <Col xs={24} md={12}>
-            <Card title="Atividades Recentes" size="small">
-              <ul>
-                <li>Chamado #123 resolvido - 07/03/2024</li>
-                <li>Chamado #122 aberto - 06/03/2024</li>
-                <li>Atualização de perfil - 05/03/2024</li>
-              </ul>
-            </Card>
-          </Col>
-          <Col xs={24} md={12}>
-            <Card title="Estatísticas" size="small">
-              <ul>
-                <li>Chamados Resolvidos: 45</li>
-                <li>Chamados em Andamento: 3</li>
-                <li>Tempo Médio de Resolução: 2.5 horas</li>
-              </ul>
-            </Card>
-          </Col>
-        </Row>
-
-        <Divider />
-
-        <Card title="Aplicações Empresariais" style={{ marginTop: 16 }}>
-          <Row gutter={[16, 16]}>
-            {applications.map((app, index) => (
-              <Col key={index} xs={24} sm={12} md={8} lg={6}>
-                <Card size="small" hoverable>
-                  <div style={{ textAlign: "center", marginBottom: 8 }}>
-                    <Avatar
-                      size={48}
-                      icon={app.icon}
-                      style={{
-                        backgroundColor: "#1890ff",
-                        marginBottom: 8,
-                      }}
-                    />
-                    <div>
-                      <Typography.Text strong>{app.name}</Typography.Text>
-                    </div>
-                    <div>
-                      <Typography.Text
-                        type="secondary"
-                        style={{ fontSize: "12px" }}
-                      >
-                        {app.type}
-                      </Typography.Text>
-                    </div>
-                    <Tooltip title={app.description}>
-                      <Tag
-                        color={getStatusColor(app.status)}
-                        style={{ marginTop: 8 }}
-                      >
-                        {app.status.toUpperCase()}
-                      </Tag>
-                    </Tooltip>
-                  </div>
-                </Card>
+    <ProtectedRoute>
+      <MainLayout>
+        <Content style={{ padding: "24px", maxWidth: 1000, margin: "0 auto" }}>
+          <Card>
+            <Row gutter={[24, 24]} align="middle">
+              <Col xs={24} sm={8} style={{ textAlign: "center" }}>
+                <Avatar
+                  size={120}
+                  icon={<UserOutlined />}
+                  style={{ backgroundColor: "#1890ff" }}
+                />
+                <Title level={3} style={{ marginTop: 16, marginBottom: 0 }}>
+                  {userData?.payload.name || "Nome não disponível"}
+                </Title>
+                <Typography.Text type="secondary">
+                  {userData?.setores?.join(", ") || "Setor não definido"}
+                </Typography.Text>
               </Col>
-            ))}
-          </Row>
-        </Card>
-      </Card>
-    </Content>
+              <Col xs={24} sm={16}>
+                {!isEditing ? (
+                  <>
+                    <div
+                      style={{
+                        display: "flex",
+                        justifyContent: "flex-end",
+                        marginBottom: 16,
+                      }}
+                    >
+                      <Button
+                        type="primary"
+                        icon={<EditOutlined />}
+                        onClick={() => setIsEditing(true)}
+                      >
+                        Editar Perfil
+                      </Button>
+                    </div>
+                    <Descriptions column={1} bordered>
+                      <Descriptions.Item label="Email">
+                        <MailOutlined />{" "}
+                        {userData?.payload.email || "Email não disponível"}
+                      </Descriptions.Item>
+                      <Descriptions.Item label="Departamento">
+                        <TeamOutlined />{" "}
+                        {userData?.setores?.join(", ") || "Setor não definido"}
+                      </Descriptions.Item>
+                      <Descriptions.Item label="ID do Usuário">
+                        {userData?.payload.sub || "ID não disponível"}
+                      </Descriptions.Item>
+                      <Descriptions.Item label="Grupos">
+                        {userData?.payload.groups?.map((group, index) => (
+                          <Tag key={index} color="blue">
+                            {group}
+                          </Tag>
+                        )) || "Nenhum grupo disponível"}
+                      </Descriptions.Item>
+                      <Descriptions.Item label="Funções">
+                        {userData?.payload.roles?.map((role, index) => (
+                          <Tag key={index} color="green">
+                            {role}
+                          </Tag>
+                        )) || "Nenhuma função disponível"}
+                      </Descriptions.Item>
+                    </Descriptions>
+                  </>
+                ) : (
+                  <Form form={form} layout="vertical" onFinish={onFinish}>
+                    <Form.Item
+                      name="name"
+                      label="Nome"
+                      rules={[
+                        {
+                          required: true,
+                          message: "Por favor, insira seu nome",
+                        },
+                      ]}
+                    >
+                      <Input prefix={<UserOutlined />} />
+                    </Form.Item>
+                    <Form.Item
+                      name="email"
+                      label="Email"
+                      rules={[
+                        {
+                          required: true,
+                          message: "Por favor, insira seu email",
+                        },
+                        { type: "email", message: "Email inválido" },
+                      ]}
+                    >
+                      <Input prefix={<MailOutlined />} />
+                    </Form.Item>
+                    <Form.Item
+                      name="phone"
+                      label="Telefone"
+                      rules={[
+                        {
+                          required: true,
+                          message: "Por favor, insira seu telefone",
+                        },
+                      ]}
+                    >
+                      <Input prefix={<PhoneOutlined />} />
+                    </Form.Item>
+                    <Form.Item>
+                      <Button type="primary" htmlType="submit">
+                        Salvar
+                      </Button>
+                      <Button
+                        style={{ marginLeft: 8 }}
+                        onClick={() => setIsEditing(false)}
+                      >
+                        Cancelar
+                      </Button>
+                    </Form.Item>
+                  </Form>
+                )}
+              </Col>
+            </Row>
+
+            <Divider orientation="left">Aplicações Disponíveis</Divider>
+            {applications.length === 0 ? (
+              <div style={{ textAlign: "center", padding: "20px" }}>
+                <Typography.Text>Nenhuma aplicação disponível</Typography.Text>
+              </div>
+            ) : (
+              <Row gutter={[16, 16]}>
+                {applications.map((app) => (
+                  <Col xs={24} sm={12} md={8} lg={6} key={app.id}>
+                    <Card
+                      hoverable
+                      onClick={() => handleCardClick(app.url)}
+                      style={{ height: "100%" }}
+                    >
+                      <div style={{ textAlign: "center", marginBottom: 12 }}>
+                        <div style={{ marginBottom: 8 }}>
+                          <Image
+                            src={app.icon}
+                            alt={`Logo ${app.name}`}
+                            width={64}
+                            height={64}
+                          />
+                        </div>
+                        <Typography.Title level={5} style={{ marginTop: 8 }}>
+                          {app.name}
+                        </Typography.Title>
+                      </div>
+                      <Typography.Paragraph
+                        ellipsis={{ rows: 2 }}
+                        style={{ height: 44 }}
+                      >
+                        {app.description}
+                      </Typography.Paragraph>
+                      <div
+                        style={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                        }}
+                      >
+                        <Tag color="blue">
+                          {app.setoresPermitidos.length > 1
+                            ? `${app.setoresPermitidos.length} setores`
+                            : app.setoresPermitidos[0]}
+                        </Tag>
+                      </div>
+                    </Card>
+                  </Col>
+                ))}
+              </Row>
+            )}
+          </Card>
+        </Content>
+      </MainLayout>
+    </ProtectedRoute>
   );
 };
 

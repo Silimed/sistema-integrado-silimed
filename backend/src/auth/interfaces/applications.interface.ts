@@ -52,7 +52,7 @@ export const applications: Application[] = [
     id: "sistema-chamados",
     name: "Sistema de Chamados TI",
     description: "Sistema de chamados para TI",
-    url: "#",
+    url: "/tickets/create",
     icon: "/logo-sem-nome.png",
     setoresPermitidos: [
       "TI",
@@ -65,6 +65,14 @@ export const applications: Application[] = [
       "Diretoria",
       "Marketing",
     ],
+  },
+  {
+    id: "gerenciamento-chamados",
+    name: "Gerenciamento de Chamados",
+    description: "Gerenciamento de chamados de TI",
+    url: "/tickets",
+    icon: "/logo-sem-nome.png",
+    setoresPermitidos: ["TI"],
   },
   {
     id: "quick-order",

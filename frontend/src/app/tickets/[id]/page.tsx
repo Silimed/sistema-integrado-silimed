@@ -1,6 +1,5 @@
 "use client";
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect } from "react";
 import {
   Card,
   Row,
@@ -10,86 +9,151 @@ import {
   Space,
   Button,
   Steps,
-  Input,
-  Form,
   Timeline,
+  Form,
+  Input,
   Modal,
-  Select,
+  message,
   Divider,
+  Select,
 } from "antd";
 import {
   CheckCircleOutlined,
   ClockCircleOutlined,
   ExclamationCircleOutlined,
+  StopOutlined,
   MessageOutlined,
-  SolutionOutlined,
+  CheckOutlined,
 } from "@ant-design/icons";
 import MainLayout from "@/components/MainLayout";
+import { useRouter, useParams } from "next/navigation";
+import { ticketsService, Ticket, Comment } from "@/services/tickets.service";
+import {
+  getTicketComments,
+  addComment,
+  deleteComment,
+} from "@/services/tickets";
+import { CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Textarea } from "@/components/ui/textarea";
+import { CommentSection } from "../components/CommentSection";
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
 
-const { Title, Text, Paragraph } = Typography;
+const { Title, Text } = Typography;
 const { TextArea } = Input;
 
-interface TicketComment {
-  id: string;
-  user: string;
-  content: string;
-  timestamp: string;
-  type: "comment" | "status_change" | "resolution";
-}
-
-interface TicketDetail {
-  id: string;
-  title: string;
-  description: string;
-  requester: string;
-  department: string;
-  priority: "Alta" | "Média" | "Baixa";
-  status: "Aberto" | "Em Atendimento" | "Resolvido" | "Fechado";
-  category: string;
-  createdAt: string;
-  updatedAt: string;
-  assignedTo?: string;
-  comments: TicketComment[];
-  resolution?: string;
-}
-
-const TicketDetailPage = ({ params }: { params: { id: string } }) => {
+const TicketDetailPage = () => {
   const router = useRouter();
+  const params = useParams();
+  const [ticket, setTicket] = useState<Ticket | null>(null);
+  const [comments, setComments] = useState<Comment[]>([]);
+  const [newComment, setNewComment] = useState("");
+  const [loading, setLoading] = useState(true);
   const [isCommentModalOpen, setIsCommentModalOpen] = useState(false);
   const [isResolutionModalOpen, setIsResolutionModalOpen] = useState(false);
+  const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
+  const [assignee, setAssignee] = useState("");
   const [form] = Form.useForm();
+  const [messageApi, contextHolder] = message.useMessage();
 
-  // Dados mockados do ticket
-  const [ticket, setTicket] = useState<TicketDetail>({
-    id: params.id,
-    title: "Computador não liga",
-    description:
-      "O computador não está ligando após queda de energia. Já verifiquei a tomada e os cabos, mas continua sem funcionar.",
-    requester: "João Silva",
-    department: "Vendas",
-    priority: "Alta",
-    status: "Em Atendimento",
-    category: "Hardware",
-    createdAt: "2024-03-07 09:00",
-    updatedAt: "2024-03-07 09:30",
-    assignedTo: "Carlos Técnico",
-    comments: [
-      {
-        id: "1",
-        user: "Carlos Técnico",
-        content: "Iniciando atendimento do chamado.",
-        timestamp: "2024-03-07 09:15",
-        type: "status_change",
-      },
-      {
-        id: "2",
-        user: "Carlos Técnico",
-        content: "Verificando fonte de alimentação do computador.",
-        timestamp: "2024-03-07 09:30",
-        type: "comment",
-      },
-    ],
-  });
+  // Lista de técnicos de TI (exemplo)
+  const techniciansList = [
+    "João Silva",
+    "Maria Oliveira",
+    "Pedro Santos",
+    "Ana Costa",
+    "Carlos Ferreira",
+  ];
+
+  useEffect(() => {
+    fetchTicket();
+  }, [params.id]);
+
+  const fetchTicket = async () => {
+    try {
+      const ticketData = await ticketsService.getTicket(params.id);
+      setTicket(ticketData);
+      const commentsData = await getTicketComments(params.id);
+      setComments(commentsData);
+    } catch (error) {
+      message.error("Erro ao carregar o ticket");
+      router.push("/tickets");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleStatusChange = async (newStatus: Ticket["status"]) => {
+    if (!ticket) return;
+
+    try {
+      await ticketsService.updateTicket(ticket.id, { status: newStatus });
+      message.success("Status atualizado com sucesso");
+      fetchTicket();
+    } catch (error) {
+      message.error("Erro ao atualizar o status");
+    }
+  };
+
+  const handleCommentSubmit = async (values: { content: string }) => {
+    if (!ticket) return;
+
+    try {
+      await addComment({
+        content: values.content,
+        ticketId: ticket._id,
+      });
+      message.success("Comentário adicionado com sucesso");
+      setIsCommentModalOpen(false);
+      form.resetFields();
+      fetchTicket();
+    } catch (error) {
+      message.error("Erro ao adicionar comentário");
+    }
+  };
+
+  const handleResolutionSubmit = async (values: { resolution: string }) => {
+    if (!ticket) return;
+
+    try {
+      await ticketsService.updateTicket(ticket.id, {
+        status: "Resolvido",
+        resolution: values.resolution,
+      });
+      message.success("Ticket resolvido com sucesso");
+      setIsResolutionModalOpen(false);
+      form.resetFields();
+      fetchTicket();
+    } catch (error) {
+      message.error("Erro ao resolver o ticket");
+    }
+  };
+
+  const handleAddComment = async () => {
+    if (!newComment.trim() || !ticket) return;
+
+    try {
+      await addComment({
+        content: newComment,
+        ticketId: ticket._id,
+      });
+      message.success("Comentário adicionado com sucesso");
+      setNewComment("");
+      fetchTicket();
+    } catch (error) {
+      message.error("Erro ao adicionar comentário");
+    }
+  };
+
+  const handleDeleteComment = async (commentId: string) => {
+    try {
+      await deleteComment(commentId);
+      setComments(comments.filter((comment) => comment._id !== commentId));
+      fetchTicket();
+    } catch (error) {
+      message.error("Erro ao excluir comentário");
+    }
+  };
 
   const getStatusStep = (status: string) => {
     switch (status) {
@@ -114,6 +178,8 @@ const TicketDetailPage = ({ params }: { params: { id: string } }) => {
         return <ClockCircleOutlined style={{ color: "#faad14" }} />;
       case "Resolvido":
         return <CheckCircleOutlined style={{ color: "#52c41a" }} />;
+      case "Fechado":
+        return <StopOutlined style={{ color: "#d9d9d9" }} />;
       default:
         return null;
     }
@@ -147,69 +213,46 @@ const TicketDetailPage = ({ params }: { params: { id: string } }) => {
     }
   };
 
-  const handleStatusChange = (newStatus: TicketDetail["status"]) => {
-    const updatedTicket = {
-      ...ticket,
-      status: newStatus,
-      updatedAt: new Date().toISOString(),
-      comments: [
-        ...ticket.comments,
-        {
-          id: (ticket.comments.length + 1).toString(),
-          user: "Carlos Técnico",
-          content: `Status alterado para ${newStatus}`,
-          timestamp: new Date().toISOString(),
-          type: "status_change" as const,
-        },
-      ],
-    };
-    setTicket(updatedTicket);
+  const handleAssignTicket = async (values: { assignee: string }) => {
+    if (!ticket) return;
+
+    try {
+      await ticketsService.updateTicket(ticket.id, {
+        assignee: values.assignee,
+        status: "Em Atendimento",
+      });
+      messageApi.success("Chamado atribuído com sucesso");
+      setIsAssignModalOpen(false);
+      form.resetFields();
+      fetchTicket();
+    } catch (error) {
+      messageApi.error("Erro ao atribuir o chamado");
+    }
   };
 
-  const handleCommentSubmit = (values: { content: string }) => {
-    const updatedTicket = {
-      ...ticket,
-      updatedAt: new Date().toISOString(),
-      comments: [
-        ...ticket.comments,
-        {
-          id: (ticket.comments.length + 1).toString(),
-          user: "Carlos Técnico",
-          content: values.content,
-          timestamp: new Date().toISOString(),
-          type: "comment" as const,
-        },
-      ],
-    };
-    setTicket(updatedTicket);
-    setIsCommentModalOpen(false);
-    form.resetFields();
+  const handlePriorityChange = async (newPriority: string) => {
+    if (!ticket) return;
+
+    try {
+      await ticketsService.updateTicket(ticket.id, { priority: newPriority });
+      messageApi.success("Prioridade atualizada com sucesso");
+      fetchTicket();
+    } catch (error) {
+      messageApi.error("Erro ao atualizar a prioridade");
+    }
   };
 
-  const handleResolutionSubmit = (values: { resolution: string }) => {
-    const updatedTicket = {
-      ...ticket,
-      status: "Resolvido" as const,
-      resolution: values.resolution,
-      updatedAt: new Date().toISOString(),
-      comments: [
-        ...ticket.comments,
-        {
-          id: (ticket.comments.length + 1).toString(),
-          user: "Carlos Técnico",
-          content: "Chamado resolvido: " + values.resolution,
-          timestamp: new Date().toISOString(),
-          type: "resolution" as const,
-        },
-      ],
-    };
-    setTicket(updatedTicket);
-    setIsResolutionModalOpen(false);
-    form.resetFields();
-  };
+  if (loading || !ticket) {
+    return (
+      <MainLayout>
+        <Card loading={true} />
+      </MainLayout>
+    );
+  }
 
   return (
     <MainLayout>
+      {contextHolder}
       <>
         <Space
           direction="horizontal"
@@ -219,206 +262,335 @@ const TicketDetailPage = ({ params }: { params: { id: string } }) => {
             marginBottom: 16,
           }}
         >
-          <Title level={2}>Chamado #{params.id}</Title>
+          <Title level={2}>Ticket #{params.id}</Title>
           <Button onClick={() => router.push("/tickets")}>Voltar</Button>
         </Space>
 
         <Row gutter={[16, 16]}>
           <Col xs={24} lg={16}>
-            <Card>
-              <Space
-                direction="vertical"
-                style={{ width: "100%" }}
-                size="large"
-              >
-                <div>
-                  <Title level={4}>{ticket.title}</Title>
-                  <Paragraph>{ticket.description}</Paragraph>
-                </div>
+            <Card title="Detalhes do Ticket">
+              <Title level={4}>{ticket?.title}</Title>
+              <Text>{ticket?.description}</Text>
 
-                <Steps
-                  current={getStatusStep(ticket.status)}
-                  items={[
-                    {
-                      title: "Aberto",
-                      icon: <ExclamationCircleOutlined />,
-                    },
-                    {
-                      title: "Em Atendimento",
-                      icon: <ClockCircleOutlined />,
-                    },
-                    {
-                      title: "Resolvido",
-                      icon: <CheckCircleOutlined />,
-                    },
-                    {
-                      title: "Fechado",
-                      icon: <CheckCircleOutlined />,
-                    },
-                  ]}
-                />
+              <Divider />
 
+              <Steps
+                current={getStatusStep(ticket?.status || "Aberto")}
+                items={[
+                  {
+                    title: "Aberto",
+                    icon: <ExclamationCircleOutlined />,
+                  },
+                  {
+                    title: "Em Atendimento",
+                    icon: <ClockCircleOutlined />,
+                  },
+                  {
+                    title: "Resolvido",
+                    icon: <CheckCircleOutlined />,
+                  },
+                  {
+                    title: "Fechado",
+                    icon: <StopOutlined />,
+                  },
+                ]}
+              />
+
+              <Divider />
+
+              <Space direction="vertical" style={{ width: "100%" }}>
                 <Space>
                   <Button
                     type="primary"
-                    icon={<MessageOutlined />}
-                    onClick={() => setIsCommentModalOpen(true)}
+                    onClick={() => setIsAssignModalOpen(true)}
+                    disabled={
+                      ticket?.status === "Fechado" ||
+                      ticket?.status === "Resolvido"
+                    }
                   >
-                    Adicionar Comentário
+                    Atribuir Chamado
                   </Button>
-                  {ticket.status !== "Resolvido" && (
-                    <Button
-                      type="primary"
-                      icon={<SolutionOutlined />}
-                      onClick={() => setIsResolutionModalOpen(true)}
-                    >
-                      Registrar Resolução
-                    </Button>
-                  )}
-                </Space>
 
-                <Divider orientation="left">Histórico</Divider>
-                <Timeline
-                  items={ticket.comments.map((comment) => ({
-                    color:
-                      comment.type === "resolution"
-                        ? "green"
-                        : comment.type === "status_change"
-                        ? "blue"
-                        : "gray",
-                    children: (
-                      <div key={comment.id}>
-                        <Text strong>{comment.user}</Text>
-                        <Text type="secondary" style={{ marginLeft: 8 }}>
-                          {new Date(comment.timestamp).toLocaleString()}
-                        </Text>
-                        <br />
-                        <Text>{comment.content}</Text>
-                      </div>
-                    ),
-                  }))}
-                />
+                  <Button
+                    onClick={() => handleStatusChange("Em Atendimento")}
+                    disabled={
+                      ticket?.status === "Em Atendimento" ||
+                      ticket?.status === "Resolvido" ||
+                      ticket?.status === "Fechado"
+                    }
+                  >
+                    Iniciar Atendimento
+                  </Button>
+
+                  <Button
+                    type="primary"
+                    onClick={() => setIsResolutionModalOpen(true)}
+                    disabled={
+                      ticket?.status === "Resolvido" ||
+                      ticket?.status === "Fechado"
+                    }
+                  >
+                    Resolver Chamado
+                  </Button>
+
+                  <Button
+                    danger
+                    onClick={() => handleStatusChange("Fechado")}
+                    disabled={ticket?.status !== "Resolvido"}
+                  >
+                    Fechar Chamado
+                  </Button>
+                </Space>
               </Space>
+            </Card>
+
+            <Card title="Comentários" style={{ marginTop: 16 }}>
+              <Space direction="vertical" style={{ width: "100%" }}>
+                <TextArea
+                  rows={4}
+                  value={newComment}
+                  onChange={(e) => setNewComment(e.target.value)}
+                  placeholder="Adicione um comentário..."
+                />
+                <Button
+                  type="primary"
+                  onClick={handleAddComment}
+                  disabled={!newComment.trim()}
+                >
+                  Adicionar Comentário
+                </Button>
+              </Space>
+
+              <Divider />
+
+              <CommentSection
+                comments={comments}
+                onDeleteComment={handleDeleteComment}
+              />
             </Card>
           </Col>
 
           <Col xs={24} lg={8}>
-            <Space direction="vertical" style={{ width: "100%" }} size="middle">
-              <Card title="Informações do Chamado">
-                <Space direction="vertical" style={{ width: "100%" }}>
-                  <div>
-                    <Text strong>Status: </Text>
-                    <Tag
-                      icon={getStatusIcon(ticket.status)}
-                      color={getStatusColor(ticket.status)}
-                    >
-                      {ticket.status}
-                    </Tag>
-                  </div>
-                  <div>
-                    <Text strong>Prioridade: </Text>
-                    <Tag color={getPriorityColor(ticket.priority)}>
-                      {ticket.priority}
-                    </Tag>
-                  </div>
-                  <div>
-                    <Text strong>Categoria: </Text>
-                    <Tag>{ticket.category}</Tag>
-                  </div>
-                  <div>
-                    <Text strong>Criado em: </Text>
-                    <Text>{new Date(ticket.createdAt).toLocaleString()}</Text>
-                  </div>
-                  <div>
-                    <Text strong>Última atualização: </Text>
-                    <Text>{new Date(ticket.updatedAt).toLocaleString()}</Text>
-                  </div>
-                </Space>
-              </Card>
+            <Card title="Informações do Chamado">
+              <Space direction="vertical" style={{ width: "100%" }}>
+                <div>
+                  <Text strong>Status: </Text>
+                  <Tag color={getStatusColor(ticket?.status || "Aberto")}>
+                    {ticket?.status || "Aberto"}
+                  </Tag>
+                </div>
 
-              <Card title="Informações do Solicitante">
-                <Space direction="vertical" style={{ width: "100%" }}>
-                  <div>
-                    <Text strong>Nome: </Text>
-                    <Text>{ticket.requester}</Text>
-                  </div>
-                  <div>
-                    <Text strong>Departamento: </Text>
-                    <Text>{ticket.department}</Text>
-                  </div>
-                </Space>
-              </Card>
+                <div>
+                  <Text strong>Prioridade: </Text>
+                  <Select
+                    value={ticket?.priority || "Média"}
+                    style={{ width: 120 }}
+                    onChange={handlePriorityChange}
+                    disabled={ticket?.status === "Fechado"}
+                  >
+                    <Select.Option value="Baixa">Baixa</Select.Option>
+                    <Select.Option value="Média">Média</Select.Option>
+                    <Select.Option value="Alta">Alta</Select.Option>
+                  </Select>
+                </div>
 
-              <Card title="Atendimento">
-                <Space direction="vertical" style={{ width: "100%" }}>
+                <div>
+                  <Text strong>Setor: </Text>
+                  <span>{ticket?.sector}</span>
+                </div>
+
+                <div>
+                  <Text strong>Criado por: </Text>
+                  <span>{ticket?.createdBy || "Não informado"}</span>
+                </div>
+
+                <div>
+                  <Text strong>Atribuído para: </Text>
+                  <span>{ticket?.assignee || "Não atribuído"}</span>
+                </div>
+
+                <div>
+                  <Text strong>Data de Criação: </Text>
+                  <span>
+                    {ticket?.createdAt
+                      ? format(new Date(ticket.createdAt), "dd/MM/yyyy HH:mm", {
+                          locale: ptBR,
+                        })
+                      : ""}
+                  </span>
+                </div>
+
+                <div>
+                  <Text strong>Última Atualização: </Text>
+                  <span>
+                    {ticket?.updatedAt
+                      ? format(new Date(ticket.updatedAt), "dd/MM/yyyy HH:mm", {
+                          locale: ptBR,
+                        })
+                      : ""}
+                  </span>
+                </div>
+
+                {ticket?.resolution && (
                   <div>
-                    <Text strong>Atribuído para: </Text>
-                    <Text>{ticket.assignedTo || "Não atribuído"}</Text>
+                    <Text strong>Resolução: </Text>
+                    <p>{ticket.resolution}</p>
                   </div>
-                  {ticket.status !== "Fechado" && (
-                    <Select
-                      style={{ width: "100%" }}
-                      value={ticket.status}
-                      onChange={handleStatusChange}
-                    >
-                      <Select.Option value="Aberto">Aberto</Select.Option>
-                      <Select.Option value="Em Atendimento">
-                        Em Atendimento
-                      </Select.Option>
-                      <Select.Option value="Resolvido">Resolvido</Select.Option>
-                      <Select.Option value="Fechado">Fechado</Select.Option>
-                    </Select>
-                  )}
-                </Space>
-              </Card>
-            </Space>
+                )}
+              </Space>
+            </Card>
+
+            <Card title="Histórico" style={{ marginTop: 16 }}>
+              <Timeline
+                items={[
+                  {
+                    color: "blue",
+                    children: (
+                      <>
+                        <Text strong>Chamado Aberto</Text>
+                        <br />
+                        <Text>
+                          {ticket?.createdAt
+                            ? format(
+                                new Date(ticket.createdAt),
+                                "dd/MM/yyyy HH:mm",
+                                { locale: ptBR }
+                              )
+                            : ""}
+                        </Text>
+                      </>
+                    ),
+                  },
+                  ...(ticket?.status !== "Aberto"
+                    ? [
+                        {
+                          color: "orange",
+                          children: (
+                            <>
+                              <Text strong>Em Atendimento</Text>
+                              <br />
+                              <Text>
+                                {ticket?.updatedAt
+                                  ? format(
+                                      new Date(ticket.updatedAt),
+                                      "dd/MM/yyyy HH:mm",
+                                      { locale: ptBR }
+                                    )
+                                  : ""}
+                              </Text>
+                            </>
+                          ),
+                        },
+                      ]
+                    : []),
+                  ...(ticket?.status === "Resolvido" ||
+                  ticket?.status === "Fechado"
+                    ? [
+                        {
+                          color: "green",
+                          children: (
+                            <>
+                              <Text strong>Resolvido</Text>
+                              <br />
+                              <Text>
+                                {ticket?.updatedAt
+                                  ? format(
+                                      new Date(ticket.updatedAt),
+                                      "dd/MM/yyyy HH:mm",
+                                      { locale: ptBR }
+                                    )
+                                  : ""}
+                              </Text>
+                            </>
+                          ),
+                        },
+                      ]
+                    : []),
+                  ...(ticket?.status === "Fechado"
+                    ? [
+                        {
+                          color: "gray",
+                          children: (
+                            <>
+                              <Text strong>Fechado</Text>
+                              <br />
+                              <Text>
+                                {ticket?.updatedAt
+                                  ? format(
+                                      new Date(ticket.updatedAt),
+                                      "dd/MM/yyyy HH:mm",
+                                      { locale: ptBR }
+                                    )
+                                  : ""}
+                              </Text>
+                            </>
+                          ),
+                        },
+                      ]
+                    : []),
+                ]}
+              />
+            </Card>
           </Col>
         </Row>
 
+        {/* Modal para adicionar resolução */}
         <Modal
-          title="Adicionar Comentário"
-          open={isCommentModalOpen}
-          onCancel={() => setIsCommentModalOpen(false)}
+          title="Resolver Chamado"
+          open={isResolutionModalOpen}
+          onCancel={() => setIsResolutionModalOpen(false)}
           footer={null}
         >
-          <Form form={form} onFinish={handleCommentSubmit}>
+          <Form form={form} onFinish={handleResolutionSubmit} layout="vertical">
             <Form.Item
-              name="content"
+              name="resolution"
+              label="Descrição da Resolução"
               rules={[
-                { required: true, message: "Por favor, insira um comentário" },
+                {
+                  required: true,
+                  message: "Por favor, descreva como o problema foi resolvido",
+                },
               ]}
             >
-              <TextArea rows={4} placeholder="Digite seu comentário..." />
+              <TextArea rows={4} />
             </Form.Item>
             <Form.Item>
               <Button type="primary" htmlType="submit">
-                Adicionar
+                Resolver Chamado
               </Button>
             </Form.Item>
           </Form>
         </Modal>
 
+        {/* Modal para atribuir chamado */}
         <Modal
-          title="Registrar Resolução"
-          open={isResolutionModalOpen}
-          onCancel={() => setIsResolutionModalOpen(false)}
+          title="Atribuir Chamado"
+          open={isAssignModalOpen}
+          onCancel={() => setIsAssignModalOpen(false)}
           footer={null}
         >
-          <Form form={form} onFinish={handleResolutionSubmit}>
+          <Form form={form} onFinish={handleAssignTicket} layout="vertical">
             <Form.Item
-              name="resolution"
+              name="assignee"
+              label="Técnico Responsável"
               rules={[
-                { required: true, message: "Por favor, descreva a resolução" },
+                {
+                  required: true,
+                  message: "Por favor, selecione um técnico",
+                },
               ]}
             >
-              <TextArea
-                rows={4}
-                placeholder="Descreva como o problema foi resolvido..."
-              />
+              <Select placeholder="Selecione um técnico">
+                {techniciansList.map((tech) => (
+                  <Select.Option key={tech} value={tech}>
+                    {tech}
+                  </Select.Option>
+                ))}
+              </Select>
             </Form.Item>
             <Form.Item>
               <Button type="primary" htmlType="submit">
-                Registrar
+                Atribuir
               </Button>
             </Form.Item>
           </Form>

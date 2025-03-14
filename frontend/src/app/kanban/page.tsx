@@ -36,6 +36,8 @@ import {
 } from "react-beautiful-dnd";
 import { useRouter } from "next/navigation";
 import dayjs from "dayjs";
+import { AuthService } from "@/services/auth";
+import axios from "axios";
 
 const { Title, Text } = Typography;
 const { TextArea } = Input;
@@ -86,27 +88,36 @@ const KanbanPage = () => {
   useEffect(() => {
     const verifyAccess = async () => {
       try {
-        const token = localStorage.getItem("access_token");
-        if (!token) {
+        if (!AuthService.isAuthenticated()) {
           message.error("Sessão expirada. Por favor, faça login novamente.");
           router.push("/login");
           return;
         }
 
-        const response = await fetch("http://localhost:3000/auth/validate", {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
-          },
-        });
+        // Configura os interceptors do Axios
+        AuthService.setupAxiosInterceptors();
 
-        if (!response.ok) {
+        const token = AuthService.getAuthToken();
+        if (!token) {
+          throw new Error("Token não encontrado");
+        }
+
+        const response = await axios.post(
+          "/auth/validate",
+          {},
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+              "Content-Type": "application/json",
+            },
+          }
+        );
+
+        if (!response.data.valid) {
           throw new Error("Token inválido");
         }
 
-        const data = await response.json();
-        const userGroups = data.payload.groups || [];
+        const userGroups = response.data.payload.groups || [];
         const isTIUser = userGroups.some((group: string) =>
           group.includes("/Setores/TI")
         );

@@ -59,8 +59,8 @@ const nextConfig = {
   experimental: {
     turbo: {}
   },
-  // Configurações adicionais para lidar com timeouts
-  serverTimeout: 30000, // 30 segundos
+  // Nota: A opção serverTimeout foi removida pois não é reconhecida pelo Next.js
+  // Para configurar timeouts, use as opções apropriadas no arquivo server.js ou no proxy reverso
   poweredByHeader: false,
 };
 

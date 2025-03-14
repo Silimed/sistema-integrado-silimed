@@ -10,44 +10,74 @@ axios.defaults.headers.common["Content-Type"] = "application/json";
 
 export const AuthService = {
   setToken() {
-    const cookies = document.cookie.split(";");
-    const authCookie = cookies.find((cookie) =>
-      cookie.trim().startsWith("auth_token=")
-    );
-    if (authCookie) {
-      const token = decodeURIComponent(authCookie.split("=")[1]);
-      localStorage.setItem("auth_token", token);
-      return true;
+    try {
+      // Primeiro tenta obter do cookie
+      const cookies = document.cookie.split(";");
+      const authCookie = cookies.find((cookie) =>
+        cookie.trim().startsWith("auth_token=")
+      );
+
+      if (authCookie) {
+        const encodedToken = authCookie.split("=")[1].trim();
+        const token = decodeURIComponent(encodedToken);
+
+        // Armazena no localStorage como backup
+        localStorage.setItem("auth_token", token);
+        console.log("Token obtido do cookie e salvo no localStorage");
+        return true;
+      } else {
+        console.warn("Cookie auth_token não encontrado");
+        return false;
+      }
+    } catch (error) {
+      console.error("Erro ao configurar token:", error);
+      return false;
     }
-    return false;
   },
 
   getAuthToken() {
-    // Primeiro tenta pegar do cookie
-    const cookies = document.cookie.split(";");
-    const authCookie = cookies.find((cookie) =>
-      cookie.trim().startsWith("auth_token=")
-    );
-    if (authCookie) {
-      return decodeURIComponent(authCookie.split("=")[1]);
-    }
+    try {
+      // Primeiro tenta pegar do cookie
+      const cookies = document.cookie.split(";");
+      const authCookie = cookies.find((cookie) =>
+        cookie.trim().startsWith("auth_token=")
+      );
 
-    // Se não encontrar no cookie, tenta pegar do localStorage
-    const token = localStorage.getItem("auth_token");
-    if (token) {
-      return token;
-    }
+      if (authCookie) {
+        const encodedToken = authCookie.split("=")[1].trim();
+        return decodeURIComponent(encodedToken);
+      }
 
-    return null;
+      // Se não encontrar no cookie, tenta pegar do localStorage
+      const token = localStorage.getItem("auth_token");
+      if (token) {
+        // Restaura o cookie a partir do localStorage
+        document.cookie = `auth_token=${encodeURIComponent(
+          token
+        )}; path=/; domain=localhost; max-age=3600`;
+        return token;
+      }
+
+      console.warn("Token não encontrado em nenhum local de armazenamento");
+      return null;
+    } catch (error) {
+      console.error("Erro ao recuperar token:", error);
+      return null;
+    }
   },
 
   removeToken() {
-    // Remove do localStorage
-    localStorage.removeItem("auth_token");
+    try {
+      // Remove do localStorage
+      localStorage.removeItem("auth_token");
 
-    // Remove o cookie
-    document.cookie =
-      "auth_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; domain=localhost;";
+      // Remove o cookie
+      document.cookie =
+        "auth_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; domain=localhost;";
+      console.log("Token removido com sucesso");
+    } catch (error) {
+      console.error("Erro ao remover token:", error);
+    }
   },
 
   isAuthenticated() {
@@ -61,9 +91,13 @@ export const AuthService = {
         withCredentials: true,
       });
       console.log("Logout realizado com sucesso");
+      this.removeToken();
       window.location.href = "/login";
     } catch (error) {
       console.error("Erro ao fazer logout:", error);
+      // Mesmo com erro, remove o token e redireciona
+      this.removeToken();
+      window.location.href = "/login";
     }
   },
 
@@ -79,6 +113,9 @@ export const AuthService = {
         const token = this.getAuthToken();
         if (token) {
           config.headers.Authorization = `Bearer ${token}`;
+          console.log("Token adicionado ao header da requisição");
+        } else {
+          console.warn("Token não disponível para requisição:", config.url);
         }
 
         config.withCredentials = true;
@@ -86,7 +123,6 @@ export const AuthService = {
         console.log("Enviando requisição:", {
           url: config.url,
           withCredentials: config.withCredentials,
-          headers: config.headers,
         });
         return config;
       },
@@ -101,7 +137,6 @@ export const AuthService = {
         console.log("Resposta recebida:", {
           url: response.config.url,
           status: response.status,
-          headers: response.headers,
         });
         return response;
       },
@@ -110,7 +145,6 @@ export const AuthService = {
           url: error.config?.url,
           status: error.response?.status,
           data: error.response?.data,
-          headers: error.response?.headers,
         });
 
         if (error.response?.status === 401) {

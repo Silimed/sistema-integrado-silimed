@@ -1,9 +1,10 @@
 "use client";
 
 import { Inter } from "next/font/google";
-import { ConfigProvider } from "antd";
-import ptBR from "antd/locale/pt_BR";
+import "./reset.css";
 import "./globals.css";
+import { NotificationProvider } from "@/contexts/NotificationContext";
+import { ThemeProvider } from "@/contexts/ThemeContext";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -14,18 +15,14 @@ export default function RootLayout({
 }) {
   return (
     <html lang="pt-BR">
-      <body className={inter.className}>
-        <ConfigProvider
-          locale={ptBR}
-          theme={{
-            token: {
-              colorPrimary: "#1890ff",
-              borderRadius: 6,
-            },
-          }}
-        >
-          {children}
-        </ConfigProvider>
+      <body className={inter.className} style={{ margin: 0, padding: 0 }}>
+        <ThemeProvider>
+          <NotificationProvider>
+            <div className="min-h-screen bg-background">
+              <main>{children}</main>
+            </div>
+          </NotificationProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

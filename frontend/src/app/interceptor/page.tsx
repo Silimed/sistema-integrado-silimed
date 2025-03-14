@@ -6,8 +6,8 @@ import Image from "next/image";
 import styles from "./interceptor.module.css";
 import axios from "axios";
 import { AuthService } from "@/services/auth";
-import LogoutButton from "@/components/LogoutButton";
 import { useRouter } from "next/navigation";
+import InterceptorHeader from "@/components/InterceptorHeader";
 
 const { Title } = Typography;
 
@@ -56,6 +56,9 @@ export default function Interceptor() {
         return;
       }
 
+      // Configura os interceptors do Axios
+      AuthService.setupAxiosInterceptors();
+
       try {
         // Primeiro valida o token
         console.log("Iniciando validação do token...");
@@ -89,13 +92,44 @@ export default function Interceptor() {
 
         // Se o token é válido, busca as aplicações
         console.log("Buscando aplicações...");
-        const response = await axios.get("/applications", {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
-        console.log("Aplicações recebidas:", response.data);
-        setApplications(response.data);
+
+        // Tenta primeiro o endpoint normal
+        try {
+          const response = await axios.get("/applications", {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          });
+          console.log("Aplicações recebidas:", response.data);
+          setApplications(response.data);
+        } catch (appError) {
+          console.error("Erro na busca de aplicações:", appError);
+
+          // Se falhar, tenta o endpoint alternativo com guard
+          if (
+            axios.isAxiosError(appError) &&
+            appError.response?.status === 401
+          ) {
+            console.log("Tentando endpoint alternativo com guard...");
+            try {
+              const guardResponse = await axios.get("/applications/guard", {
+                headers: {
+                  Authorization: `Bearer ${token}`,
+                },
+              });
+              console.log(
+                "Aplicações recebidas do endpoint guard:",
+                guardResponse.data
+              );
+              setApplications(guardResponse.data);
+            } catch (guardError) {
+              console.error("Erro também no endpoint com guard:", guardError);
+              throw guardError;
+            }
+          } else {
+            throw appError;
+          }
+        }
       } catch (error) {
         console.error(
           "Erro na validação do token ou busca de aplicações:",
@@ -121,6 +155,7 @@ export default function Interceptor() {
       }
     } catch (error) {
       console.error("Erro geral:", error);
+      message.error("Ocorreu um erro inesperado. Por favor, tente novamente.");
     } finally {
       setLoading(false);
     }
@@ -146,16 +181,11 @@ export default function Interceptor() {
   return (
     <div className={styles.container}>
       {userData && (
-        <div className={styles.userInfo}>
-          <Title level={4}>Bem-vindo(a): {userData.payload.name}</Title>
-          <p>Setor: {userData.setores?.join(", ") || "Não definido"}</p>
-          <LogoutButton />
-        </div>
+        <InterceptorHeader
+          userName={userData.payload.name}
+          userSector={userData.setores?.join(", ") || undefined}
+        />
       )}
-      <Title level={2} className={styles.title}>
-        Aplicações Disponíveis
-      </Title>
-
       {applications.length === 0 ? (
         <Empty
           description="Nenhuma aplicação disponível"

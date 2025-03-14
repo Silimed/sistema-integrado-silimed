@@ -2,6 +2,11 @@
   padding: 2rem;
   min-height: 100vh;
   background-color: #f0f2f5;
+  transition: background-color 0.3s ease;
+}
+
+:global(.dark-theme) .container {
+  background-color: #141414;
 }
 
 .title {
@@ -53,30 +58,20 @@
   color: #262626;
 }
 
+:global(.dark-theme) .cardTitle {
+  color: #fff;
+}
+
 .cardDescription {
   color: #595959;
   margin: 0;
   font-size: 14px;
 }
 
+:global(.dark-theme) .cardDescription {
+  color: #a6a6a6;
+}
+
 .empty {
   margin-top: 48px;
-}
-
-.userInfo {
-  background-color: white;
-  padding: 1rem;
-  border-radius: 8px;
-  margin-bottom: 2rem;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-}
-
-.userInfo h4 {
-  margin: 0;
-  color: #1890ff;
-}
-
-.userInfo p {
-  margin: 0.5rem 0 0;
-  color: #666;
 }

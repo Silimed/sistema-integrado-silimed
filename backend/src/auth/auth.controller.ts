@@ -110,46 +110,99 @@ export class AuthController {
   @Post("validate")
   async validateToken(@Headers("authorization") authHeader: string) {
     try {
+      console.log(
+        "Iniciando validação de token com header:",
+        authHeader ? "Presente" : "Ausente"
+      );
+
       if (!authHeader || !authHeader.startsWith("Bearer ")) {
-        return { valid: false, message: "Token não fornecido" };
+        console.log("Token não fornecido ou formato inválido");
+        return {
+          valid: false,
+          message: "Token não fornecido ou formato inválido",
+        };
       }
 
       const token = authHeader.split(" ")[1];
       if (!token) {
+        console.log("Token vazio após split");
         return { valid: false, message: "Token inválido" };
       }
 
-      // Decodifica o token JWT
-      const decodedToken = jwt.decode(token) as DecodedToken;
-      if (!decodedToken) {
-        return { valid: false, message: "Token inválido ou malformado" };
+      console.log("Token extraído do header, comprimento:", token.length);
+
+      try {
+        // Tenta validar o token usando o serviço de autenticação
+        const validationResult = await this.authService.validateToken(token);
+
+        // Extrai os setores dos grupos
+        const setores = (validationResult.payload.groups || []).map((group) =>
+          group.replace(/^\/Setores\//, "")
+        );
+
+        console.log("Validação bem-sucedida, setores:", setores);
+
+        // Retorna os dados do token validado
+        return {
+          valid: true,
+          payload: {
+            sub: validationResult.payload.sub,
+            email:
+              validationResult.payload.email ||
+              validationResult.payload.preferred_username,
+            name:
+              validationResult.payload.name ||
+              validationResult.payload.preferred_username,
+            groups: validationResult.payload.groups,
+            roles: validationResult.payload.realm_access?.roles || [],
+          },
+          setores: setores,
+        };
+      } catch (validationError) {
+        console.error(
+          "Erro na validação do token pelo serviço:",
+          validationError
+        );
+
+        // Tenta decodificar o token manualmente como fallback
+        const decodedToken = jwt.decode(token) as DecodedToken;
+        if (!decodedToken) {
+          console.log("Fallback: Token inválido ou malformado");
+          return { valid: false, message: "Token inválido ou malformado" };
+        }
+
+        // Verifica a expiração do token
+        const currentTime = Math.floor(Date.now() / 1000);
+        if (decodedToken.exp && decodedToken.exp < currentTime) {
+          console.log("Fallback: Token expirado");
+          return { valid: false, message: "Token expirado" };
+        }
+
+        // Extrai os setores dos grupos
+        const setores = (decodedToken.groups || []).map((group) =>
+          group.replace(/^\/Setores\//, "")
+        );
+
+        console.log(
+          "Fallback: Validação manual bem-sucedida, setores:",
+          setores
+        );
+
+        // Retorna os dados do token validado
+        return {
+          valid: true,
+          payload: {
+            sub: decodedToken.sub,
+            email: decodedToken.email,
+            name: decodedToken.name,
+            groups: decodedToken.groups,
+            roles: decodedToken.realm_access?.roles || [],
+          },
+          setores: setores,
+        };
       }
-
-      // Verifica a expiração do token
-      const currentTime = Math.floor(Date.now() / 1000);
-      if (decodedToken.exp && decodedToken.exp < currentTime) {
-        return { valid: false, message: "Token expirado" };
-      }
-
-      // Extrai os setores dos grupos
-      const setores = (decodedToken.groups || []).map((group) =>
-        group.replace(/^\/Setores\//, "")
-      );
-
-      // Retorna os dados do token validado
-      return {
-        valid: true,
-        payload: {
-          sub: decodedToken.sub,
-          email: decodedToken.email,
-          name: decodedToken.name,
-          groups: decodedToken.groups,
-          roles: decodedToken.realm_access?.roles || [],
-        },
-        setores: setores,
-      };
     } catch (error) {
-      console.error("Erro na validação do token:", error);
+      console.error("Erro geral na validação do token:", error);
       return { valid: false, message: "Erro na validação do token" };
     }
   }

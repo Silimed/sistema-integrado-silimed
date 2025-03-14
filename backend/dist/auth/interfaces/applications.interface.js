@@ -46,7 +46,7 @@ exports.applications = [
         id: "sistema-chamados",
         name: "Sistema de Chamados TI",
         description: "Sistema de chamados para TI",
-        url: "#",
+        url: "/tickets/create",
         icon: "/logo-sem-nome.png",
         setoresPermitidos: [
             "TI",
@@ -59,6 +59,14 @@ exports.applications = [
             "Diretoria",
             "Marketing",
         ],
+    },
+    {
+        id: "gerenciamento-chamados",
+        name: "Gerenciamento de Chamados",
+        description: "Gerenciamento de chamados de TI",
+        url: "/tickets",
+        icon: "/logo-sem-nome.png",
+        setoresPermitidos: ["TI"],
     },
     {
         id: "quick-order",

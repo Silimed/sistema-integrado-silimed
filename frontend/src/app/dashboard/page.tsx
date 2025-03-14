@@ -1,208 +1,350 @@
 "use client";
-import { useEffect, useState, useCallback } from "react";
+
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import axios from "axios";
-import { Card, Row, Col, Statistic, Table, Badge, message } from "antd";
 import {
-  WarningOutlined,
-  ClockCircleOutlined,
+  Card,
+  Row,
+  Col,
+  Typography,
+  Button,
+  Statistic,
+  List,
+  Tag,
+  Space,
+  Divider,
+} from "antd";
+import {
+  PlusOutlined,
+  ToolOutlined,
   CheckCircleOutlined,
+  ClockCircleOutlined,
+  ExclamationCircleOutlined,
 } from "@ant-design/icons";
-import { AuthService } from "@/services/auth";
 import MainLayout from "@/components/MainLayout";
 import ProtectedRoute from "@/components/ProtectedRoute";
+import { getTickets, Ticket } from "@/services/tickets";
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
 
-const Dashboard = () => {
+const { Title, Text } = Typography;
+
+export default function DashboardPage() {
   const router = useRouter();
+  const [tickets, setTickets] = useState<Ticket[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Dados mockados para exemplo
-  const statisticsData = [
-    {
-      title: "Chamados Abertos",
-      value: 12,
-      icon: <WarningOutlined style={{ color: "#ff4d4f" }} />,
-    },
-    {
-      title: "Em Atendimento",
-      value: 5,
-      icon: <ClockCircleOutlined style={{ color: "#faad14" }} />,
-    },
-    {
-      title: "Resolvidos Hoje",
-      value: 8,
-      icon: <CheckCircleOutlined style={{ color: "#52c41a" }} />,
-    },
-  ];
-
-  const recentAppointments = [
-    {
-      key: "1",
-      user: "Carlos Silva",
-      department: "Financeiro",
-      title: "Problema com Impressora",
-      priority: "Alta",
-      status: "Em Atendimento",
-      created_at: "2024-03-07 09:00",
-    },
-    {
-      key: "2",
-      user: "Maria Santos",
-      department: "RH",
-      title: "Email não sincroniza",
-      priority: "Média",
-      status: "Aberto",
-      created_at: "2024-03-07 10:30",
-    },
-    {
-      key: "3",
-      user: "João Oliveira",
-      department: "Comercial",
-      title: "Computador não liga",
-      priority: "Alta",
-      status: "Em Atendimento",
-      created_at: "2024-03-07 11:00",
-    },
-  ];
-
-  const columns = [
-    {
-      title: "Usuário",
-      dataIndex: "user",
-      key: "user",
-    },
-    {
-      title: "Departamento",
-      dataIndex: "department",
-      key: "department",
-    },
-    {
-      title: "Problema",
-      dataIndex: "title",
-      key: "title",
-    },
-    {
-      title: "Prioridade",
-      dataIndex: "priority",
-      key: "priority",
-      render: (priority: string) => (
-        <Badge
-          status={
-            priority === "Alta"
-              ? "error"
-              : priority === "Média"
-              ? "warning"
-              : "success"
-          }
-          text={priority}
-        />
-      ),
-    },
-    {
-      title: "Status",
-      dataIndex: "status",
-      key: "status",
-      render: (status: string) => (
-        <Badge
-          status={
-            status === "Aberto"
-              ? "error"
-              : status === "Em Atendimento"
-              ? "processing"
-              : "success"
-          }
-          text={status}
-        />
-      ),
-    },
-    {
-      title: "Abertura",
-      dataIndex: "created_at",
-      key: "created_at",
-    },
-  ];
-
-  const verifyToken = useCallback(async () => {
-    try {
-      if (!AuthService.isAuthenticated()) {
-        throw new Error("Token não encontrado");
-      }
-
-      // Configura os interceptors do Axios
-      AuthService.setupAxiosInterceptors();
-
-      // Tenta buscar os dados do dashboard
-      await axios.get("/dashboard");
-      setLoading(false);
-    } catch (error) {
-      console.error("Erro na verificação do token:", error);
-
-      // Remove o token inválido
-      AuthService.removeToken();
-
-      // Mostra mensagem de erro apropriada
-      if (axios.isAxiosError(error)) {
-        message.error(
-          error.response?.status === 401
-            ? "Sessão expirada. Por favor, faça login novamente."
-            : "Erro de autenticação. Por favor, faça login novamente."
-        );
-      } else {
-        message.error("Erro de autenticação. Por favor, faça login novamente.");
-      }
-
-      // Redireciona para o login
-      router.push("/login");
-    }
-  }, [router]);
-
   useEffect(() => {
-    verifyToken();
-  }, [verifyToken]);
+    fetchTickets();
+  }, []);
 
-  if (loading) {
-    return (
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "center",
-          alignItems: "center",
-          height: "100vh",
-        }}
-      >
-        Carregando...
-      </div>
-    );
-  }
+  const fetchTickets = async () => {
+    try {
+      setLoading(true);
+      const data = await getTickets();
+      setTickets(Array.isArray(data) ? data : []);
+    } catch (error) {
+      console.error("Erro ao carregar tickets:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case "Aberto":
+        return <ExclamationCircleOutlined style={{ color: "#f5222d" }} />;
+      case "Em Andamento":
+        return <ClockCircleOutlined style={{ color: "#faad14" }} />;
+      case "Resolvido":
+        return <CheckCircleOutlined style={{ color: "#52c41a" }} />;
+      default:
+        return null;
+    }
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case "open":
+        return "error";
+      case "in_progress":
+        return "warning";
+      case "closed":
+        return "success";
+      default:
+        return "default";
+    }
+  };
+
+  const getStatusText = (status: string) => {
+    switch (status) {
+      case "open":
+        return "Aberto";
+      case "in_progress":
+        return "Em Andamento";
+      case "closed":
+        return "Fechado";
+      default:
+        return status;
+    }
+  };
+
+  const getPriorityColor = (priority: string) => {
+    switch (priority) {
+      case "high":
+        return "red";
+      case "medium":
+        return "orange";
+      case "low":
+        return "green";
+      default:
+        return "default";
+    }
+  };
+
+  const getPriorityText = (priority: string) => {
+    switch (priority) {
+      case "high":
+        return "Alta";
+      case "medium":
+        return "Média";
+      case "low":
+        return "Baixa";
+      default:
+        return priority;
+    }
+  };
+
+  // Filtrar tickets por status
+  const openTickets = tickets.filter((ticket) => ticket.status === "open");
+  const inProgressTickets = tickets.filter(
+    (ticket) => ticket.status === "in_progress"
+  );
+  const resolvedTickets = tickets.filter(
+    (ticket) => ticket.status === "closed"
+  );
+
+  // Ordenar tickets recentes por data de criação (mais recentes primeiro)
+  const recentTickets = [...tickets]
+    .sort(
+      (a, b) =>
+        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    )
+    .slice(0, 5);
 
   return (
-    <ProtectedRoute allowedSetores={["TI"]}>
+    <ProtectedRoute>
       <MainLayout>
-        <>
+        <div className="container mx-auto py-8">
+          <div className="flex justify-between items-center mb-8">
+            <Title level={2}>Dashboard</Title>
+            <Button
+              type="primary"
+              icon={<PlusOutlined />}
+              onClick={() => router.push("/tickets/create")}
+            >
+              Criar Novo Chamado
+            </Button>
+          </div>
+
           <Row gutter={[16, 16]}>
-            {statisticsData.map((stat, index) => (
-              <Col key={index} xs={24} sm={12} lg={8}>
-                <Card>
-                  <Statistic
-                    title={stat.title}
-                    value={stat.value}
-                    prefix={stat.icon}
-                  />
-                </Card>
-              </Col>
-            ))}
+            <Col xs={24} sm={8}>
+              <Card>
+                <Statistic
+                  title="Chamados Abertos"
+                  value={openTickets.length}
+                  valueStyle={{ color: "#f5222d" }}
+                  prefix={<ExclamationCircleOutlined />}
+                />
+              </Card>
+            </Col>
+            <Col xs={24} sm={8}>
+              <Card>
+                <Statistic
+                  title="Em Atendimento"
+                  value={inProgressTickets.length}
+                  valueStyle={{ color: "#faad14" }}
+                  prefix={<ClockCircleOutlined />}
+                />
+              </Card>
+            </Col>
+            <Col xs={24} sm={8}>
+              <Card>
+                <Statistic
+                  title="Resolvidos"
+                  value={resolvedTickets.length}
+                  valueStyle={{ color: "#52c41a" }}
+                  prefix={<CheckCircleOutlined />}
+                />
+              </Card>
+            </Col>
           </Row>
-          <Card title="Chamados Recentes" style={{ marginTop: 16 }}>
-            <Table
-              columns={columns}
-              dataSource={recentAppointments}
-              pagination={{ pageSize: 5 }}
-            />
-          </Card>
-        </>
+
+          <Divider />
+
+          <Row gutter={[16, 16]}>
+            <Col xs={24} lg={12}>
+              <Card
+                title={
+                  <Space>
+                    <ToolOutlined />
+                    <span>Chamados Recentes</span>
+                  </Space>
+                }
+                extra={
+                  <Button type="link" onClick={() => router.push("/tickets")}>
+                    Ver Todos
+                  </Button>
+                }
+              >
+                <List
+                  dataSource={recentTickets}
+                  renderItem={(ticket) => (
+                    <List.Item
+                      key={ticket._id}
+                      actions={[
+                        <Button
+                          key="view"
+                          type="link"
+                          onClick={() => router.push(`/tickets/${ticket._id}`)}
+                        >
+                          Ver
+                        </Button>,
+                      ]}
+                    >
+                      <List.Item.Meta
+                        title={
+                          <a
+                            onClick={() =>
+                              router.push(`/tickets/${ticket._id}`)
+                            }
+                          >
+                            {ticket.title}
+                          </a>
+                        }
+                        description={
+                          <Space>
+                            <Tag color={getStatusColor(ticket.status)}>
+                              {getStatusText(ticket.status)}
+                            </Tag>
+                            <Tag color={getPriorityColor(ticket.priority)}>
+                              {getPriorityText(ticket.priority)}
+                            </Tag>
+                            <Text type="secondary">
+                              {format(
+                                new Date(ticket.createdAt),
+                                "dd/MM/yyyy HH:mm",
+                                { locale: ptBR }
+                              )}
+                            </Text>
+                          </Space>
+                        }
+                      />
+                    </List.Item>
+                  )}
+                  loading={loading}
+                  locale={{
+                    emptyText: "Nenhum chamado encontrado",
+                  }}
+                />
+              </Card>
+            </Col>
+
+            <Col xs={24} lg={12}>
+              <Card
+                title={
+                  <Space>
+                    <ExclamationCircleOutlined />
+                    <span>Meus Chamados Abertos</span>
+                  </Space>
+                }
+              >
+                <List
+                  dataSource={openTickets.slice(0, 5)}
+                  renderItem={(ticket) => (
+                    <List.Item
+                      key={ticket._id}
+                      actions={[
+                        <Button
+                          key="view"
+                          type="link"
+                          onClick={() => router.push(`/tickets/${ticket._id}`)}
+                        >
+                          Ver
+                        </Button>,
+                      ]}
+                    >
+                      <List.Item.Meta
+                        title={
+                          <a
+                            onClick={() =>
+                              router.push(`/tickets/${ticket._id}`)
+                            }
+                          >
+                            {ticket.title}
+                          </a>
+                        }
+                        description={
+                          <Space>
+                            <Tag color={getPriorityColor(ticket.priority)}>
+                              {getPriorityText(ticket.priority)}
+                            </Tag>
+                            <Text type="secondary">
+                              {format(
+                                new Date(ticket.createdAt),
+                                "dd/MM/yyyy HH:mm",
+                                { locale: ptBR }
+                              )}
+                            </Text>
+                          </Space>
+                        }
+                      />
+                    </List.Item>
+                  )}
+                  loading={loading}
+                  locale={{
+                    emptyText: "Nenhum chamado aberto",
+                  }}
+                />
+                {openTickets.length > 5 && (
+                  <div style={{ textAlign: "center", marginTop: 16 }}>
+                    <Button type="link" onClick={() => router.push("/tickets")}>
+                      Ver Todos ({openTickets.length})
+                    </Button>
+                  </div>
+                )}
+              </Card>
+            </Col>
+          </Row>
+
+          <Divider />
+
+          <Row gutter={[16, 16]}>
+            <Col xs={24}>
+              <Card>
+                <Space direction="vertical" style={{ width: "100%" }}>
+                  <Title level={4}>Acesso Rápido</Title>
+                  <Space wrap>
+                    <Button
+                      type="primary"
+                      icon={<PlusOutlined />}
+                      onClick={() => router.push("/tickets/create")}
+                    >
+                      Criar Novo Chamado
+                    </Button>
+                    <Button
+                      icon={<ToolOutlined />}
+                      onClick={() => router.push("/tickets")}
+                    >
+                      Gerenciar Chamados
+                    </Button>
+                  </Space>
+                </Space>
+              </Card>
+            </Col>
+          </Row>
+        </div>
       </MainLayout>
     </ProtectedRoute>
   );
-};
-
-export default Dashboard;
+}
